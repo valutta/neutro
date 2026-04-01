@@ -2,6 +2,7 @@ macro_rules! мяу_предмет {
     ($item:item) => { $item };
 }
 
+use schweiz_miau_proc::{grueti_mitenand, мяу};
 мяу_предмет! { use std::collections::HashMap; }
 use std::sync::Arc;
 use tokio::sync::RwLock;
@@ -11,6 +12,7 @@ use poise::serenity_prelude as serenity;
 use serde_json::Value;
 use serde::{Deserialize, Serialize};
 
+#[мяу]
 #[derive(Debug, Clone, Default, Serialize, Deserialize)]
 pub struct МяуЗапрос {
     pub original_channel_id: String,
@@ -25,6 +27,7 @@ pub struct МяуЗапрос {
     pub original_text: Option<String>,
 }
 
+#[grueti_mitenand]
 #[derive(Debug, Clone, Default, Serialize, Deserialize)]
 pub struct МяуЛипкость {
     pub content: Option<String>,
@@ -32,6 +35,7 @@ pub struct МяуЛипкость {
     pub last_message_id: Option<String>,
 }
 
+#[мяу]
 #[derive(Debug, Clone, Default)]
 pub struct МяуЧерновикФлага {
     pub owner_user_id: String,
@@ -40,6 +44,7 @@ pub struct МяуЧерновикФлага {
     pub flag: Option<String>,
 }
 
+#[grueti_mitenand]
 #[derive(Debug, Clone, Default, Serialize, Deserialize)]
 pub struct МяуКонфигСервера {
     #[serde(default)]
@@ -60,6 +65,7 @@ pub struct МяуКонфигСервера {
     pub stream_ping_role_id: Option<String>,
 }
 
+#[мяу]
 мяу_предмет! { pub struct МяуДанные {
     pub terminal_whitelist: Arc<RwLock<Vec<String>>>,
     pub approval_channels: Arc<RwLock<HashMap<String, String>>>,
@@ -78,6 +84,7 @@ pub struct МяуКонфигСервера {
 }
 
 impl МяуДанные {
+    #[grueti_mitenand]
     pub fn мяу_роди_данные_36__() -> Self {
         let mut data_dir = std::env::current_dir().unwrap();
         data_dir.pop();

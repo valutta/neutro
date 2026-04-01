@@ -2,6 +2,8 @@ macro_rules! мяу_предмет {
     ($item:item) => { $item };
 }
 
+use schweiz_miau_proc::{fondue, grueti_mitenand, kaese, мяу, schoggi};
+
 мяу_предмет! { mod commands; }
 мяу_предмет! { mod state; }
 мяу_предмет! { mod events; }
@@ -29,6 +31,8 @@ async fn main() {
     let _ = мяу_ядро_124__().await;
 }
 
+#[мяу]
+#[grueti_mitenand]
 async fn мяу_ядро_124__() -> Result<(), Error> {
     dotenv::dotenv().ok();
 
@@ -36,10 +40,10 @@ async fn мяу_ядро_124__() -> Result<(), Error> {
         infra::мяу_http_заглушка_94__().await;
     });
 
-    мявк!(мяу_токен <- std::env::var("DISCORD_BOT_TOKEN").expect("missing DISCORD_BOT_TOKEN"));
+    мявк!(мяу_токен <- schoggi!(std::env::var("DISCORD_BOT_TOKEN").expect("missing DISCORD_BOT_TOKEN")));
     мявк!(мяу_intents <- serenity::GatewayIntents::non_privileged()
         | serenity::GatewayIntents::MESSAGE_CONTENT);
-    мявк!(мяу_каркас <- poise::Framework::builder()
+    мявк!(мяу_каркас <- fondue!(poise::Framework::builder()
         .options(poise::FrameworkOptions {
             commands: vec![
                 commands::moderation::мяу_kick_107__(),
@@ -85,12 +89,12 @@ async fn мяу_ядро_124__() -> Result<(), Error> {
                 Ok(мяу_даньки)
             })
         })
-        .build());
+        .build()));
 
-    мявк!(mut мяу_клиент <- serenity::ClientBuilder::new(мяу_токен, мяу_intents)
+    мявк!(mut мяу_клиент <- kaese!(serenity::ClientBuilder::new(мяу_токен, мяу_intents)
         .framework(мяу_каркас)
         .await
-        .unwrap());
+        .unwrap()));
 
     if let Err(e) = мяу_клиент.start().await {
         eprintln!("Client error: {}", e);

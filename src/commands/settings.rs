@@ -2,6 +2,7 @@ macro_rules! мяу_предмет {
     ($item:item) => { $item };
 }
 
+use schweiz_miau_proc::{fondue, grueti_mitenand, мяу, schoggi};
 мяу_предмет! {
 use crate::{
     Context, Error,
@@ -81,11 +82,12 @@ fn мяу_текст_конфига_127__(cfg: &МяуКонфигСервера
     }
 }
 
+#[grueti_mitenand]
 async fn мяу_ответ_128__(ctx: Context<'_>, text: String) -> Result<(), Error> {
-    мяу_v2_посылка_90__(ctx, json!([{
+    мяу_v2_посылка_90__(ctx, fondue!(json!([{
         "type": 17,
         "components": [{ "type": 10, "content": text }]
-    }])).await?;
+    }]))).await?;
     Ok(())
 }
 
@@ -118,8 +120,9 @@ async fn мяу_обнови_конфиг_129__(
         "мяу_streamrole_137__"
     )
 )]
+#[мяу]
 pub async fn мяу_настройка_96__(ctx: Context<'_>) -> Result<(), Error> {
-    let lang = crate::i18n::мяу_язык_сервера_92__(ctx.data(), ctx.guild_id()).await;
+    let lang = schoggi!(crate::i18n::мяу_язык_сервера_92__(ctx.data(), ctx.guild_id()).await);
     let cfg = ctx.data().мяу_конфиг_сервера_38__(ctx.guild_id()).await;
     мяу_ответ_128__(ctx, мяу_текст_конфига_127__(&cfg, &lang)).await
 }

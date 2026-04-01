@@ -2,6 +2,7 @@ macro_rules! мяу_предмет {
     ($item:item) => { $item };
 }
 
+use schweiz_miau_proc::{fondue, мяу};
 мяу_предмет! { use crate::{Context, Error}; }
 use serde_json::json;
 
@@ -11,11 +12,12 @@ macro_rules! мяф {
     };
 }
 
+#[мяу]
 pub async fn мяу_v2_посылка_90__(ctx: Context<'_>, components: serde_json::Value) -> Result<(), Error> {
-    мяф!(мяу_карта <- json!({
+    мяф!(мяу_карта <- fondue!(json!({
         "flags": 1 << 15,
         "components": components,
-    }));
+    })));
 
     match ctx {
         poise::Context::Application(app_ctx) => {

@@ -2,6 +2,7 @@ macro_rules! мяу_предмет {
     ($item:item) => { $item };
 }
 
+use schweiz_miau_proc::{fondue, grueti_mitenand, мяу, schoggi};
 мяу_предмет! {
 use crate::{
     Error,
@@ -172,6 +173,7 @@ async fn мяу_сотри_request_хвосты_11__(paths: &[String]) {
     }
 }
 
+#[grueti_mitenand]
 async fn мяу_пошли_лог_12__(
     ctx: &serenity::Context,
     data: &МяуДанные,
@@ -188,11 +190,11 @@ async fn мяу_пошли_лог_12__(
     else {
         return;
     };
-    let embed = CreateEmbed::new()
+    let embed = fondue!(CreateEmbed::new()
         .title(title)
-        .description(description)
+        .description(schoggi!(description))
         .color(color)
-        .timestamp(serenity::Timestamp::now());
+        .timestamp(serenity::Timestamp::now()));
     let _ = serenity::ChannelId::new(log_channel_id)
         .send_message(ctx, serenity::CreateMessage::new().embed(embed))
         .await;
@@ -211,6 +213,8 @@ async fn мяу_найди_аудит_13__(
     Some((entry.user_id, entry.target_id.map(|t| t.get())))
 }
 
+#[мяу]
+#[grueti_mitenand]
 pub async fn мяу_событийный_кошмар_00__(
     ctx: &serenity::Context,
     event: &serenity::FullEvent,

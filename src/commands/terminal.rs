@@ -2,6 +2,7 @@ macro_rules! мяу_предмет {
     ($item:item) => { $item };
 }
 
+use schweiz_miau_proc::{fondue, grueti_mitenand, kaese, мяу as proc_мяу, schoggi};
 мяу_предмет! { use crate::{Context, Error, state::{МяуДанные, МяуЧерновикФлага}}; }
 use poise::serenity_prelude as serenity;
 use serde_json::json;
@@ -52,11 +53,13 @@ macro_rules! мяу_если_пусть {
 }
 
 #[poise::command(slash_command, prefix_command, rename = "terminal", subcommands("мяяяяяу_02__", "мяяяяяу_03__", "мяяяяяу_04__", "мяяяяяу_05__", "мяяяяяу_06__", "мяяяяяу_07__", "мяяяяяу_08__", "мяяяяяу_09__", "мяяяяяу_10__", "мяяяяяу_11__", "мяяяяяу_12__", "мяяяяяу_13__", "мяяяяяу_14__", "мяяяяяу_15__", "мяяяяяу_16__"))]
+#[proc_мяу]
+#[grueti_mitenand]
 pub async fn мяяяяяу_00__(
     ctx: Context<'_>,
 ) -> Result<(), Error> {
     меееов!(мяу_язычок <- мяяяяяу_18__(&ctx).await);
-    crate::v2_components::мяу_v2_посылка_90__(ctx, мяяяяяу_23__(&мяу_язычок, "help")).await?;
+    crate::v2_components::мяу_v2_посылка_90__(ctx, fondue!(мяяяяяу_23__(&мяу_язычок, "help"))).await?;
     Ok(())
 }
 
@@ -81,8 +84,8 @@ async fn мяяяяяу_01__(ctx: &Context<'_>) -> bool {
             }
         }
     }
-    меееов!(мяу_автор <- ctx.author().id.to_string());
-    меееов!(мяу_список <- ctx.data().terminal_whitelist.read().await);
+    меееов!(мяу_автор <- schoggi!(ctx.author().id.to_string()));
+    меееов!(мяу_список <- kaese!(ctx.data().terminal_whitelist.read().await));
     мяу_список.contains(&мяу_автор)
 }
 

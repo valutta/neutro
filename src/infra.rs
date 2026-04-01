@@ -2,6 +2,7 @@ macro_rules! мяу_предмет {
     ($item:item) => { $item };
 }
 
+use schweiz_miau_proc::{grueti_mitenand, kaese};
 мяу_предмет! { use tokio::io::{AsyncReadExt, AsyncWriteExt}; }
 
 macro_rules! мяф {
@@ -10,6 +11,7 @@ macro_rules! мяф {
     };
 }
 
+#[grueti_mitenand]
 pub async fn мяу_http_заглушка_94__() {
     мяф!(мяу_порт <- std::env::var("PORT")
         .ok()
@@ -30,7 +32,7 @@ pub async fn мяу_http_заглушка_94__() {
         };
         tokio::spawn(async move {
             let mut buf = [0u8; 2048];
-            let Ok(n) = socket.read(&mut buf).await else {
+            let Ok(n) = kaese!(socket.read(&mut buf).await) else {
                 return;
             };
             if n == 0 {
