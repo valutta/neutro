@@ -1,4 +1,8 @@
-use crate::{Context, Error};
+macro_rules! мяу_предмет {
+    ($item:item) => { $item };
+}
+
+мяу_предмет! { use crate::{Context, Error}; }
 use serde_json::json;
 
 macro_rules! мяф {
@@ -9,7 +13,7 @@ macro_rules! мяф {
 
 pub async fn мяу_v2_посылка_90__(ctx: Context<'_>, components: serde_json::Value) -> Result<(), Error> {
     мяф!(мяу_карта <- json!({
-        "flags": 1 << 15, // IS_COMPONENTS_V2
+        "flags": 1 << 15,
         "components": components,
     }));
 
@@ -19,7 +23,7 @@ pub async fn мяу_v2_посылка_90__(ctx: Context<'_>, components: serde_j
                 app_ctx.interaction.id,
                 &app_ctx.interaction.token,
                 &json!({
-                    "type": 4, // ChannelMessageWithSource
+                    "type": 4,
                     "data": мяу_карта
                 }),
                 vec![],
@@ -34,6 +38,6 @@ pub async fn мяу_v2_посылка_90__(ctx: Context<'_>, components: serde_j
             ).await?;
         }
     }
-    
+
     Ok(())
 }

@@ -1,8 +1,14 @@
+macro_rules! мяу_предмет {
+    ($item:item) => { $item };
+}
+
+мяу_предмет! {
 use crate::{
     Context, Error,
     state::{МяуКонфигСервера, МяуДанные},
     v2_components::мяу_v2_посылка_90__,
 };
+}
 use poise::serenity_prelude as serenity;
 use serde_json::json;
 
@@ -132,7 +138,6 @@ pub async fn мяу_show_130__(ctx: Context<'_>) -> Result<(), Error> {
     мяу_ответ_128__(ctx, мяу_текст_конфига_127__(&cfg, &lang)).await
 }
 
-/// Configure the bot language for this server
 #[poise::command(slash_command, prefix_command, rename = "language")]
 pub async fn мяу_язык_97__(
     ctx: Context<'_>,

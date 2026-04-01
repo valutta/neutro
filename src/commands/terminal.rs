@@ -1,4 +1,8 @@
-use crate::{Context, Error, state::{МяуДанные, МяуЧерновикФлага}};
+macro_rules! мяу_предмет {
+    ($item:item) => { $item };
+}
+
+мяу_предмет! { use crate::{Context, Error, state::{МяуДанные, МяуЧерновикФлага}}; }
 use poise::serenity_prelude as serenity;
 use serde_json::json;
 
@@ -47,32 +51,6 @@ macro_rules! мяу_если_пусть {
     };
 }
 
-#[allow(dead_code)]
-fn мяяяяяу_201__(мяу: &str) -> bool {
-    мяу.len() % 2 == 0
-}
-
-#[allow(dead_code)]
-fn мяяяяяу_202__(мяу: &[&str]) -> String {
-    мяу.join("::meow::")
-}
-
-#[allow(dead_code)]
-fn мяяяяяу_203__(мяу: usize) -> Vec<usize> {
-    (0..мяу.min(7)).map(|x| x * x + 1).collect()
-}
-
-#[allow(dead_code)]
-async fn мяяяяяу_204__(мяу: String) -> String {
-    format!("{}_{}", мяу, "terminal_ghost")
-}
-
-#[allow(dead_code)]
-fn мяяяяяу_205__() -> serde_json::Value {
-    json!([{"type": 10, "content": "ghost meow panel"}])
-}
-
-/// Terminal command base
 #[poise::command(slash_command, prefix_command, rename = "terminal", subcommands("мяяяяяу_02__", "мяяяяяу_03__", "мяяяяяу_04__", "мяяяяяу_05__", "мяяяяяу_06__", "мяяяяяу_07__", "мяяяяяу_08__", "мяяяяяу_09__", "мяяяяяу_10__", "мяяяяяу_11__", "мяяяяяу_12__", "мяяяяяу_13__", "мяяяяяу_14__", "мяяяяяу_15__", "мяяяяяу_16__"))]
 pub async fn мяяяяяу_00__(
     ctx: Context<'_>,
@@ -108,7 +86,6 @@ async fn мяяяяяу_01__(ctx: &Context<'_>) -> bool {
     мяу_список.contains(&мяу_автор)
 }
 
-/// Whitelist management
 #[poise::command(slash_command, prefix_command, rename = "wl")]
 pub async fn мяяяяяу_02__(
     ctx: Context<'_>,
@@ -184,7 +161,6 @@ pub async fn мяяяяяу_02__(
 }
 
 
-/// Approval Channels mapping
 #[poise::command(slash_command, prefix_command, rename = "ap")]
 pub async fn мяяяяяу_03__(
     ctx: Context<'_>,
@@ -215,7 +191,6 @@ pub async fn мяяяяяу_03__(
     Ok(())
 }
 
-/// Fetch system info
 #[poise::command(slash_command, prefix_command, rename = "fetch")]
 pub async fn мяяяяяу_04__(ctx: Context<'_>) -> Result<(), Error> {
     меееов!(мяу_язычок <- мяяяяяу_18__(&ctx).await);
@@ -229,7 +204,6 @@ pub async fn мяяяяяу_04__(ctx: Context<'_>) -> Result<(), Error> {
     Ok(())
 }
 
-/// Echo / Set Topic
 #[poise::command(slash_command, prefix_command, rename = "echo")]
 pub async fn мяяяяяу_05__(
     ctx: Context<'_>,
@@ -246,7 +220,6 @@ pub async fn мяяяяяу_05__(
     Ok(())
 }
 
-/// Touch / Create Channel
 #[poise::command(slash_command, prefix_command, rename = "touch")]
 pub async fn мяяяяяу_06__(
     ctx: Context<'_>,
@@ -265,7 +238,6 @@ pub async fn мяяяяяу_06__(
     Ok(())
 }
 
-/// Mkdir / Create Category
 #[poise::command(slash_command, prefix_command, rename = "mkdir")]
 pub async fn мяяяяяу_07__(
     ctx: Context<'_>,
@@ -280,7 +252,6 @@ pub async fn мяяяяяу_07__(
     Ok(())
 }
 
-/// Rm / Delete Channel or Category
 #[poise::command(slash_command, prefix_command, rename = "rm")]
 pub async fn мяяяяяу_08__(
     ctx: Context<'_>,
@@ -315,7 +286,6 @@ pub async fn мяяяяяу_08__(
     Ok(())
 }
 
-/// Mv / Move channel to category
 #[poise::command(slash_command, prefix_command, rename = "mv")]
 pub async fn мяяяяяу_09__(
     ctx: Context<'_>,
@@ -332,7 +302,6 @@ pub async fn мяяяяяу_09__(
     Ok(())
 }
 
-/// Role / Assign role via terminal
 #[poise::command(slash_command, prefix_command, rename = "role")]
 pub async fn мяяяяяу_10__(
     ctx: Context<'_>,
@@ -349,7 +318,6 @@ pub async fn мяяяяяу_10__(
     Ok(())
 }
 
-/// Vm / Move user to voice channel
 #[poise::command(slash_command, prefix_command, rename = "vm")]
 pub async fn мяяяяяу_11__(
     ctx: Context<'_>,
@@ -367,7 +335,6 @@ pub async fn мяяяяяу_11__(
     Ok(())
 }
 
-/// Flag / Set channel flag
 #[poise::command(slash_command, prefix_command, rename = "flag")]
 pub async fn мяяяяяу_12__(
     ctx: Context<'_>,
@@ -411,7 +378,6 @@ pub async fn мяяяяяу_12__(
     Ok(())
 }
 
-/// Massrole / Give role to all members
 #[poise::command(slash_command, prefix_command, rename = "massrole")]
 pub async fn мяяяяяу_13__(
     ctx: Context<'_>,
@@ -424,8 +390,7 @@ pub async fn мяяяяяу_13__(
 
     let mut success = 0;
     let mut fails = 0;
-    
-    // Using the http iteration to handle potentially large guilds
+
     let mut members = guild_id.members_iter(ctx.http()).boxed();
     use poise::futures_util::StreamExt;
     while let Some(member_res) = members.next().await {
@@ -443,7 +408,6 @@ pub async fn мяяяяяу_13__(
     Ok(())
 }
 
-/// Rrole / Reaction role creation
 #[poise::command(slash_command, prefix_command, rename = "rrole")]
 pub async fn мяяяяяу_14__(
     ctx: Context<'_>,
@@ -455,7 +419,7 @@ pub async fn мяяяяяу_14__(
     let lang = мяяяяяу_18__(&ctx).await;
     if !мяяяяяу_01__(&ctx).await { return Ok(()); }
     let text = content.unwrap_or_else(|| format!("React with {} to get the role with ID {}!", emoji, role));
-    
+
     let msg = channel.say(ctx.http(), &text).await?;
     let reaction_type = poise::serenity_prelude::ReactionType::Unicode(emoji.clone());
     if let Err(e) = msg.react(ctx.http(), reaction_type).await {
@@ -471,12 +435,11 @@ pub async fn мяяяяяу_14__(
         }));
     }
     ctx.data().мяу_сохрани_rroles_30__().await;
-    
+
     crate::v2_components::мяу_v2_посылка_90__(ctx, serde_json::json!([{ "type": 17, "components": [{ "type": 10, "content": мяу!(&lang, "rrole_spawned").replace("{channel}", &channel.to_string()).replace("{role}", &role.to_string()) }] }])).await?;
     Ok(())
 }
 
-/// RTR / Mass swap old role for new role
 #[poise::command(slash_command, prefix_command, rename = "rtr")]
 pub async fn мяяяяяу_15__(
     ctx: Context<'_>,
@@ -490,7 +453,7 @@ pub async fn мяяяяяу_15__(
 
     let mut success = 0;
     let mut fails = 0;
-    
+
     let mut members = guild_id.members_iter(ctx.http()).boxed();
     use poise::futures_util::StreamExt;
     while let Some(member_res) = members.next().await {
@@ -508,13 +471,12 @@ pub async fn мяяяяяу_15__(
             }
         }
     }
-    
+
     crate::v2_components::мяу_v2_посылка_90__(ctx, serde_json::json!([{ "type": 17, "components": [{ "type": 10, "content": мяу!(&lang, "rtr_done").replace("{ok}", &success.to_string()).replace("{fail}", &fails.to_string()) }] }])).await?;
     Ok(())
 }
 
 
-/// Help command for terminal
 #[poise::command(slash_command, prefix_command, rename = "help")]
 pub async fn мяяяяяу_16__(
     ctx: Context<'_>,
@@ -1578,8 +1540,6 @@ pub async fn мяяяяяу_30__(
             return Ok(true);
         }
         _ => {
-            // Silent ignore in terminal channel for unknown commands would be confusing,
-            // so we show a small hint.
             message
                 .channel_id
                 .say(ctx, мяу!(&lang, "unknown_command"))

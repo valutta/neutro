@@ -1,4 +1,8 @@
-use tokio::io::{AsyncReadExt, AsyncWriteExt};
+macro_rules! мяу_предмет {
+    ($item:item) => { $item };
+}
+
+мяу_предмет! { use tokio::io::{AsyncReadExt, AsyncWriteExt}; }
 
 macro_rules! мяф {
     ($who:ident <- $what:expr) => {

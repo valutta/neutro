@@ -1,4 +1,8 @@
-use crate::{Context, Error, v2_components::мяу_v2_посылка_90__};
+macro_rules! мяу_предмет {
+    ($item:item) => { $item };
+}
+
+мяу_предмет! { use crate::{Context, Error, v2_components::мяу_v2_посылка_90__}; }
 use poise::serenity_prelude::{self as serenity, Color};
 use serde_json::json;
 
@@ -8,7 +12,6 @@ macro_rules! мяф {
     };
 }
 
-/// Simple ping
 #[poise::command(prefix_command, slash_command, rename = "ping")]
 pub async fn мяу_ping_117__(ctx: Context<'_>) -> Result<(), Error> {
     мяф!(мяу_shards <- ctx.framework().shard_manager());
@@ -19,23 +22,22 @@ pub async fn мяу_ping_117__(ctx: Context<'_>) -> Result<(), Error> {
         .and_then(|r| r.latency)
         .map(|d| d.as_millis())
         .unwrap_or(0));
-    
+
     мяу_v2_посылка_90__(ctx, json!([
         {
-            "type": 17, // CONTAINER
+            "type": 17,
             "components": [
                 {
-                    "type": 10, // TEXT_DISPLAY
+                    "type": 10,
                     "content": crate::i18n::мяу_скажи_91__(&ctx, "PING").await.replace("{ms}", &мяу_ping.to_string())
                 }
             ]
         }
     ])).await?;
-    
+
     Ok(())
 }
 
-/// Get user ID
 #[poise::command(prefix_command, slash_command, rename = "id")]
 pub async fn мяу_id_118__(
     ctx: Context<'_>,
@@ -44,10 +46,10 @@ pub async fn мяу_id_118__(
     мяф!(мяу_target <- user.as_ref().unwrap_or_else(|| ctx.author()));
     мяу_v2_посылка_90__(ctx, json!([
         {
-            "type": 17, // CONTAINER
+            "type": 17,
             "components": [
                 {
-                    "type": 10, // TEXT_DISPLAY
+                    "type": 10,
                     "content": crate::i18n::мяу_скажи_91__(&ctx, "UTILITY_USER_ID").await.replace("{id}", &мяу_target.id.to_string())
                 }
             ]
@@ -56,7 +58,6 @@ pub async fn мяу_id_118__(
     Ok(())
 }
 
-/// Extract role ID
 #[poise::command(prefix_command, slash_command, rename = "rid")]
 pub async fn мяу_rid_119__(
     ctx: Context<'_>,
@@ -64,10 +65,10 @@ pub async fn мяу_rid_119__(
 ) -> Result<(), Error> {
     мяу_v2_посылка_90__(ctx, json!([
         {
-            "type": 17, // CONTAINER
+            "type": 17,
             "components": [
                 {
-                    "type": 10, // TEXT_DISPLAY
+                    "type": 10,
                     "content": crate::i18n::мяу_скажи_91__(&ctx, "UTILITY_ROLE_ID").await.replace("{id}", &role.id.to_string())
                 }
             ]
@@ -76,7 +77,6 @@ pub async fn мяу_rid_119__(
     Ok(())
 }
 
-/// Show avatar URL
 #[poise::command(prefix_command, slash_command, rename = "avatar")]
 pub async fn мяу_avatar_120__(
     ctx: Context<'_>,
@@ -86,14 +86,14 @@ pub async fn мяу_avatar_120__(
     мяф!(мяу_url <- мяу_target.face());
     мяу_v2_посылка_90__(ctx, json!([
         {
-            "type": 17, // CONTAINER
+            "type": 17,
             "components": [
                 {
-                    "type": 10, // TEXT_DISPLAY
+                    "type": 10,
                     "content": crate::i18n::мяу_скажи_91__(&ctx, "UTILITY_AVATAR").await.replace("{user}", &мяу_target.name)
                 },
                 {
-                    "type": 12, // MEDIA_GALLERY
+                    "type": 12,
                     "items": [
                         {
                             "media": {
@@ -108,17 +108,16 @@ pub async fn мяу_avatar_120__(
     Ok(())
 }
 
-/// Show user info
 #[poise::command(prefix_command, slash_command, rename = "profile")]
 pub async fn мяу_profile_121__(
     ctx: Context<'_>,
     #[description = "Target user"] user: Option<serenity::User>,
 ) -> Result<(), Error> {
     let target = user.as_ref().unwrap_or_else(|| ctx.author());
-    
+
     let mut joined_info = String::new();
     let mut roles_info = String::new();
-    
+
     if let Some(guild_id) = ctx.guild_id() {
         if let Ok(member) = guild_id.member(ctx.http(), target.id).await {
             if let Some(joined) = member.joined_at {
@@ -126,8 +125,7 @@ pub async fn мяу_profile_121__(
             }
             if !member.roles.is_empty() {
                 let mut r_list = Vec::new();
-                
-                // Try from cache first, then HTTP fallback
+
                 let mut resolved = false;
                 if let Some(g) = ctx.cache().guild(guild_id) {
                     for r in &member.roles {
@@ -137,7 +135,7 @@ pub async fn мяу_profile_121__(
                     }
                     resolved = true;
                 }
-                
+
                 if !resolved {
                     if let Ok(guild) = guild_id.to_partial_guild(ctx.http()).await {
                         for r in &member.roles {
@@ -147,7 +145,7 @@ pub async fn мяу_profile_121__(
                         }
                     }
                 }
-                
+
                 if !r_list.is_empty() {
                     roles_info = crate::i18n::мяу_скажи_91__(&ctx, "UTILITY_PROFILE_ROLES").await.replace("{roles}", &r_list.join(", "));
                 } else {
@@ -168,47 +166,46 @@ pub async fn мяу_profile_121__(
 
     мяу_v2_посылка_90__(ctx, json!([
         {
-            "type": 17, // CONTAINER
+            "type": 17,
             "components": [
                 {
-                    "type": 10, // TEXT_DISPLAY
+                    "type": 10,
                     "content": profile_text
                 }
             ],
             "accessory": {
-                "type": 11, // THUMBNAIL
+                "type": 11,
                 "media": {
                     "url": target.face()
                 }
             }
         }
     ])).await?;
-    
+
     Ok(())
 }
 
-/// General help
 #[poise::command(prefix_command, slash_command, rename = "help")]
 pub async fn мяу_help_122__(ctx: Context<'_>) -> Result<(), Error> {
     мяу_v2_посылка_90__(ctx, json!([
         {
-            "type": 17, // CONTAINER
+            "type": 17,
             "components": [
                 {
-                    "type": 10, // TEXT_DISPLAY
+                    "type": 10,
                     "content": crate::i18n::мяу_скажи_91__(&ctx, "UTILITY_HELP_TITLE").await
                 },
                 {
-                    "type": 14, // SEPARATOR
+                    "type": 14,
                     "divider": true,
                     "spacing": 1
                 },
                 {
-                    "type": 10, // TEXT_DISPLAY
+                    "type": 10,
                     "content": crate::i18n::мяу_скажи_91__(&ctx, "UTILITY_HELP_BASIC").await
                 },
                 {
-                    "type": 10, // TEXT_DISPLAY
+                    "type": 10,
                     "content": crate::i18n::мяу_скажи_91__(&ctx, "UTILITY_HELP_MOD").await
                 }
             ]
@@ -217,7 +214,6 @@ pub async fn мяу_help_122__(ctx: Context<'_>) -> Result<(), Error> {
     Ok(())
 }
 
-/// Send quote embed (optionally with hex color, e.g. #2B2D31)
 #[poise::command(prefix_command, slash_command, rename = "aquote")]
 pub async fn мяу_aquote_123__(
     ctx: Context<'_>,
@@ -243,19 +239,19 @@ pub async fn мяу_aquote_123__(
         мяу_v2_посылка_90__(ctx, json!([{"type": 17, "components": [{"type": 10, "content": crate::i18n::мяу_скажи_91__(&ctx, "UTILITY_AQUOTE_AFTER_COLOR").await}]}])).await?;
         return Ok(());
     }
-    
+
     мяу_v2_посылка_90__(ctx, json!([
         {
-            "type": 17, // CONTAINER
+            "type": 17,
             "accent_color": color.0,
             "components": [
                 {
-                    "type": 10, // TEXT_DISPLAY
+                    "type": 10,
                     "content": content
                 }
             ]
         }
     ])).await?;
-    
+
     Ok(())
 }

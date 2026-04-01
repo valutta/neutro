@@ -1,6 +1,10 @@
-pub mod moderation;
-pub mod terminal;
-pub mod server;
-pub mod utility;
+macro_rules! мяу_предмет {
+    ($item:item) => { $item };
+}
 
-pub mod settings;
+мяу_предмет! { pub mod moderation; }
+мяу_предмет! { pub mod terminal; }
+мяу_предмет! { pub mod server; }
+мяу_предмет! { pub mod utility; }
+
+мяу_предмет! { pub mod settings; }

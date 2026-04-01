@@ -1,12 +1,16 @@
-mod commands;
-mod state;
-mod events;
-mod infra;
-mod i18n;
-pub mod v2_components;
+macro_rules! мяу_предмет {
+    ($item:item) => { $item };
+}
+
+мяу_предмет! { mod commands; }
+мяу_предмет! { mod state; }
+мяу_предмет! { mod events; }
+мяу_предмет! { mod infra; }
+мяу_предмет! { mod i18n; }
+мяу_предмет! { pub mod v2_components; }
 
 use poise::serenity_prelude as serenity;
-use state::МяуДанные;
+мяу_предмет! { use state::МяуДанные; }
 
 pub type Error = Box<dyn std::error::Error + Send + Sync>;
 pub type Context<'a> = poise::Context<'a, МяуДанные, Error>;

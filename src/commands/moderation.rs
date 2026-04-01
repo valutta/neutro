@@ -1,4 +1,8 @@
-use crate::{Context, Error, v2_components::мяу_v2_посылка_90__};
+macro_rules! мяу_предмет {
+    ($item:item) => { $item };
+}
+
+мяу_предмет! { use crate::{Context, Error, v2_components::мяу_v2_посылка_90__}; }
 use poise::serenity_prelude as serenity;
 use serde_json::json;
 
@@ -8,7 +12,6 @@ macro_rules! мяф {
     };
 }
 
-/// Check if the command author has the staff role or server admin permission
 async fn мяу_стафф_проверка_95__(ctx: &Context<'_>) -> bool {
     let Some(guild_id) = ctx.guild_id() else {
         return false;
@@ -50,7 +53,7 @@ fn мяу_длительность_104__(input: &str) -> Option<i64> {
 
 async fn мяу_мод_ответ_105__(ctx: Context<'_>, text: String) -> Result<(), Error> {
     мяу_v2_посылка_90__(ctx, json!([{
-        "type": 17, 
+        "type": 17,
         "components": [{ "type": 10, "content": text }]
     }])).await?;
     Ok(())
@@ -58,13 +61,12 @@ async fn мяу_мод_ответ_105__(ctx: Context<'_>, text: String) -> Resul
 
 async fn мяу_мод_ошибка_106__(ctx: Context<'_>, text: String) -> Result<(), Error> {
     мяу_v2_посылка_90__(ctx, json!([{
-        "type": 17, 
+        "type": 17,
         "components": [{ "type": 10, "content": text }]
     }])).await?;
     Ok(())
 }
 
-/// Kick a user
 #[poise::command(slash_command, prefix_command, rename = "kick")]
 pub async fn мяу_kick_107__(
     ctx: Context<'_>,
@@ -86,7 +88,6 @@ pub async fn мяу_kick_107__(
     мяу_мод_ответ_105__(ctx, crate::i18n::мяу_скажи_91__(&ctx, "KICK_SUCCESS").await.replace("{user}", &user.name).replace("{reason}", reason_str)).await
 }
 
-/// Ban a user
 #[poise::command(slash_command, prefix_command, rename = "ban")]
 pub async fn мяу_ban_108__(
     ctx: Context<'_>,
@@ -108,7 +109,6 @@ pub async fn мяу_ban_108__(
     мяу_мод_ответ_105__(ctx, crate::i18n::мяу_скажи_91__(&ctx, "BAN_SUCCESS").await.replace("{user}", &user.name).replace("{reason}", reason_str)).await
 }
 
-/// Mute a user (apply timeout)
 #[poise::command(slash_command, prefix_command, rename = "mute")]
 pub async fn мяу_mute_109__(
     ctx: Context<'_>,
@@ -125,9 +125,9 @@ pub async fn мяу_mute_109__(
     };
     let now = serenity::Timestamp::now().unix_timestamp();
     let until = serenity::Timestamp::from_unix_timestamp(now + minutes * 60).unwrap();
-    
+
     let builder = serenity::EditMember::new().disable_communication_until(until.to_string());
-    
+
     if let Err(e) = guild_id.edit_member(ctx.http(), user.id, builder).await {
         return мяу_мод_ошибка_106__(ctx, crate::i18n::мяу_скажи_91__(&ctx, "MUTE_FAIL").await.replace("{user}", &user.name).replace("{err}", &e.to_string())).await;
     }
@@ -136,7 +136,6 @@ pub async fn мяу_mute_109__(
     мяу_мод_ответ_105__(ctx, crate::i18n::мяу_скажи_91__(&ctx, "MUTE_SUCCESS").await.replace("{user}", &user.name).replace("{duration}", &format!("{}m", minutes)).replace("{reason}", reason_msg)).await
 }
 
-/// Tempmute with human-friendly duration like 30m, 2h, 1d
 #[poise::command(slash_command, prefix_command, rename = "tempmute")]
 pub async fn мяу_tempmute_110__(
     ctx: Context<'_>,
@@ -169,7 +168,6 @@ pub async fn мяу_tempmute_110__(
     мяу_мод_ответ_105__(ctx, crate::i18n::мяу_скажи_91__(&ctx, "MUTE_SUCCESS").await.replace("{user}", &user.name).replace("{duration}", &duration).replace("{reason}", reason_str)).await
 }
 
-/// Unmute a user (remove timeout)
 #[poise::command(slash_command, prefix_command, rename = "unmute")]
 pub async fn мяу_unmute_111__(
     ctx: Context<'_>,
@@ -182,16 +180,15 @@ pub async fn мяу_unmute_111__(
         Some(id) => id,
         None => return мяу_мод_ошибка_106__(ctx, crate::i18n::мяу_скажи_91__(&ctx, "MOD_MUST_BE_GUILD").await).await,
     };
-    
+
     let builder = serenity::EditMember::new().enable_communication();
-    
+
     if let Err(e) = guild_id.edit_member(ctx.http(), user.id, builder).await {
         return мяу_мод_ошибка_106__(ctx, crate::i18n::мяу_скажи_91__(&ctx, "UNMUTE_FAIL").await.replace("{user}", &user.name).replace("{err}", &e.to_string())).await;
     }
     мяу_мод_ответ_105__(ctx, crate::i18n::мяу_скажи_91__(&ctx, "UNMUTE_SUCCESS").await.replace("{user}", &user.name)).await
 }
 
-/// Clear messages
 #[poise::command(slash_command, prefix_command, rename = "clear")]
 pub async fn мяу_clear_112__(
     ctx: Context<'_>,
@@ -202,7 +199,7 @@ pub async fn мяу_clear_112__(
     }
     let channel_id = ctx.channel_id();
     let messages = channel_id.messages(ctx.http(), serenity::GetMessages::new().limit(amount as u8)).await?;
-    
+
     let message_ids: Vec<serenity::MessageId> = messages.iter().map(|m| m.id).collect();
     if let Err(e) = channel_id.delete_messages(ctx.http(), message_ids).await {
         return мяу_мод_ошибка_106__(ctx, crate::i18n::мяу_скажи_91__(&ctx, "MOD_CLEAR_FAIL").await.replace("{err}", &e.to_string())).await;
@@ -210,7 +207,6 @@ pub async fn мяу_clear_112__(
     мяу_мод_ответ_105__(ctx, crate::i18n::мяу_скажи_91__(&ctx, "CLEAR_SUCCESS").await.replace("{amount}", &amount.to_string())).await
 }
 
-/// Assign or remove a role
 #[poise::command(slash_command, prefix_command, rename = "role")]
 pub async fn мяу_role_113__(
     ctx: Context<'_>,
@@ -235,7 +231,6 @@ pub async fn мяу_role_113__(
     }
 }
 
-/// Announce a message
 #[poise::command(slash_command, prefix_command, rename = "announce")]
 pub async fn мяу_announce_114__(
     ctx: Context<'_>,
@@ -245,19 +240,19 @@ pub async fn мяу_announce_114__(
     if !мяу_стафф_проверка_95__(&ctx).await {
         return мяу_мод_ошибка_106__(ctx, crate::i18n::мяу_скажи_91__(&ctx, "ERR_NO_STAFF").await).await;
     }
-    
+
     let map = json!({
         "flags": 1 << 15,
         "components": [
             {
-                "type": 17, // CONTAINER
+                "type": 17,
                 "components": [
                     { "type": 10, "content": text }
                 ]
             }
         ]
     });
-    
+
     if let Err(e) = ctx.http().send_message(channel.id, vec![], &map).await {
         мяу_мод_ошибка_106__(ctx, format!("Failed to announce: {}", e)).await
     } else {
@@ -265,7 +260,6 @@ pub async fn мяу_announce_114__(
     }
 }
 
-/// Announce and ping everyone
 #[poise::command(slash_command, prefix_command, rename = "eannounce")]
 pub async fn мяу_eannounce_115__(
     ctx: Context<'_>,
@@ -276,20 +270,20 @@ pub async fn мяу_eannounce_115__(
         return мяу_мод_ошибка_106__(ctx, crate::i18n::мяу_скажи_91__(&ctx, "ERR_NO_STAFF").await).await;
     }
     let target_channel_id = channel.map(|c| c.id).unwrap_or_else(|| ctx.channel_id());
-    
+
     let map = json!({
         "content": "@everyone",
         "flags": 1 << 15,
         "components": [
             {
-                "type": 17, // CONTAINER
+                "type": 17,
                 "components": [
                     { "type": 10, "content": text }
                 ]
             }
         ]
     });
-    
+
     if let Err(e) = ctx.http().send_message(target_channel_id, vec![], &map).await {
         мяу_мод_ошибка_106__(ctx, format!("Failed to announce: {}", e)).await
     } else {
@@ -297,7 +291,6 @@ pub async fn мяу_eannounce_115__(
     }
 }
 
-/// Stream ping message in the current channel
 #[poise::command(slash_command, prefix_command, rename = "stream")]
 pub async fn мяу_stream_116__(
     ctx: Context<'_>,
@@ -327,15 +320,15 @@ pub async fn мяу_stream_116__(
         .replace("{role_id}", &stream_role_id)
         .replace("{user}", &ctx.author().name)
         .replace("{link}", &link);
-    
+
     let map = json!({
         "flags": 1 << 15,
         "components": [{
-            "type": 17, 
+            "type": 17,
             "components": [{ "type": 10, "content": msg }]
         }]
     });
-    
+
     if let Err(e) = ctx.http().send_message(ctx.channel_id(), vec![], &map).await {
         мяу_мод_ошибка_106__(ctx, format!("Failed to send stream announcement: {}", e)).await
     } else {

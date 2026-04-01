@@ -1,37 +1,18 @@
+macro_rules! мяу_предмет {
+    ($item:item) => { $item };
+}
+
+мяу_предмет! {
 use crate::{
     Error,
     state::{МяуДанные, МяуЗапрос, МяуЛипкость},
 };
+}
 use poise::serenity_prelude as serenity;
 use serde_json::json;
 use serenity::{CreateEmbed, Color};
 use std::path::{Path, PathBuf};
 use tokio::fs;
-
-#[allow(dead_code)]
-fn мяу_призрак_201__(мяу: &str) -> usize {
-    мяу.bytes().fold(0usize, |acc, b| acc.wrapping_add(b as usize))
-}
-
-#[allow(dead_code)]
-fn мяу_призрак_202__(мяу: usize) -> String {
-    format!("meow://{}", мяу.wrapping_mul(13).wrapping_add(7))
-}
-
-#[allow(dead_code)]
-fn мяу_призрак_203__(мяу: &[String]) -> Vec<String> {
-    мяу.iter().rev().map(|x| format!("{}_ghost", x)).collect()
-}
-
-#[allow(dead_code)]
-async fn мяу_призрак_204__(мяу: Option<String>) -> Option<String> {
-    мяу.map(|x| x.chars().rev().collect())
-}
-
-#[allow(dead_code)]
-fn мяу_призрак_205__() -> serde_json::Value {
-    json!({"meow": {"ghost": true, "noise": [1,2,3,5,8]}})
-}
 
 fn мяу_вытяни_шнурки_01__(input: &str) -> Vec<String> {
     input
@@ -238,7 +219,6 @@ pub async fn мяу_событийный_кошмар_00__(
 ) -> Result<(), Error> {
     match event {
         serenity::FullEvent::GuildMemberAddition { new_member } => {
-            // Auto-role
             let guild_key = new_member.guild_id.to_string();
             let configured = data.auto_roles.read().await.get(&guild_key).cloned();
             let fallback = std::env::var("AUTO_JOIN_ROLE_ID").ok();
@@ -454,10 +434,10 @@ async fn мяу_компонентный_ад_14__(
                     "flags": 1 << 15,
                     "components": [
                         {
-                            "type": 17, // CONTAINER
+                            "type": 17,
                             "components": [
                                 {
-                                    "type": 10, // TEXT_DISPLAY
+                                    "type": 10,
                                     "content": display_text
                                 }
                             ]
@@ -469,14 +449,14 @@ async fn мяу_компонентный_ад_14__(
                     "flags": 1 << 15,
                     "components": [
                         {
-                            "type": 17, // CONTAINER
+                            "type": 17,
                             "components": [
                                 {
-                                    "type": 10, // TEXT_DISPLAY
+                                    "type": 10,
                                     "content": display_text
                                 },
                                 {
-                                    "type": 12, // MEDIA_GALLERY
+                                    "type": 12,
                                     "items": media_items
                                 }
                             ]
@@ -506,7 +486,6 @@ async fn мяу_компонентный_ад_14__(
         }
     }
 
-    // Cleanup request and message
     мяу_сотри_request_хвосты_11__(&req.stored_files).await;
     data.media_requests.write().await.remove(&msg_id);
     data.мяу_сохрани_media_requests_34__().await;
@@ -526,7 +505,6 @@ async fn мяу_request_очередь_15__(
         return Ok(false);
     }
 
-    // Request queue is enabled only for channels marked with the "request" flag.
     let ch_id = message.channel_id.to_string();
     let has_request_flag = data
         .flags
@@ -578,16 +556,16 @@ async fn мяу_request_очередь_15__(
             "flags": 1 << 15,
             "components": [
                 {
-                    "type": 17, // CONTAINER
+                    "type": 17,
                     "components": [
                         {
-                            "type": 10, // TEXT_DISPLAY
+                            "type": 10,
                             "content": info_text
                         }
                     ]
                 },
                 {
-                    "type": 1, // ACTION_ROW
+                    "type": 1,
                     "components": [
                         { "type": 2, "style": 3, "label": "Approve", "custom_id": format!("media_approve_{}", message.id) },
                         { "type": 2, "style": 4, "label": "Deny", "custom_id": format!("media_deny_{}", message.id) },
@@ -601,20 +579,20 @@ async fn мяу_request_очередь_15__(
             "flags": 1 << 15,
             "components": [
                 {
-                    "type": 17, // CONTAINER
+                    "type": 17,
                     "components": [
                         {
-                            "type": 10, // TEXT_DISPLAY
+                            "type": 10,
                             "content": info_text
                         },
                         {
-                            "type": 12, // MEDIA_GALLERY
+                            "type": 12,
                             "items": media_items
                         }
                     ]
                 },
                 {
-                    "type": 1, // ACTION_ROW
+                    "type": 1,
                     "components": [
                         { "type": 2, "style": 3, "label": "Approve", "custom_id": format!("media_approve_{}", message.id) },
                         { "type": 2, "style": 4, "label": "Deny", "custom_id": format!("media_deny_{}", message.id) },
@@ -843,7 +821,6 @@ async fn мяу_реакционный_ужас_19__(
                 _ => return Ok(()),
             };
 
-            // Media request moderation queue
             if added {
                 let req = data.media_requests.read().await.get(&msg_id).cloned();
                 if let Some(req) = req {
@@ -911,7 +888,6 @@ async fn мяу_реакционный_ужас_19__(
                 }
             }
 
-            // Starboard
             if added && (emoji_id == "⭐" || emoji_id == "star") {
                 let cfg = data.мяу_конфиг_сервера_38__(Some(guild_id)).await;
                 let Some(starboard_channel_id) = cfg.starboard_channel_id.and_then(|id| id.parse::<u64>().ok()) else {
@@ -965,7 +941,6 @@ async fn мяу_реакционный_ужас_19__(
                                 )
                                 .await;
 
-                            // Economy reward removed
                         }
                     }
                 }
@@ -973,7 +948,6 @@ async fn мяу_реакционный_ужас_19__(
 
             let rr = data.reaction_roles.read().await;
             if let Some(config) = rr.get(&msg_id) {
-                // Config format: { "roleId": "...", "emoji": "..." }
                 if let (Some(role_id_val), Some(emoji_val)) = (config.get("roleId"), config.get("emoji")) {
                     if emoji_val.as_str() == Some(&emoji_id) {
                         if let Some(role_id_str) = role_id_val.as_str() {

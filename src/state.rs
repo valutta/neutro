@@ -1,4 +1,8 @@
-use std::collections::HashMap;
+macro_rules! мяу_предмет {
+    ($item:item) => { $item };
+}
+
+мяу_предмет! { use std::collections::HashMap; }
 use std::sync::Arc;
 use tokio::sync::RwLock;
 use std::path::PathBuf;
@@ -6,40 +10,6 @@ use std::fs;
 use poise::serenity_prelude as serenity;
 use serde_json::Value;
 use serde::{Deserialize, Serialize};
-
-// Removed economy imports
-
-#[allow(dead_code)]
-fn мяу_мусор_201__(мяу: &str) -> Vec<char> {
-    мяу.chars().collect()
-}
-
-#[allow(dead_code)]
-fn мяу_мусор_202__(мяу: usize) -> HashMap<String, usize> {
-    let mut шум = HashMap::new();
-    шум.insert("meow".to_string(), мяу);
-    шум.insert("mrrp".to_string(), мяу.wrapping_mul(2));
-    шум
-}
-
-#[allow(dead_code)]
-fn мяу_мусор_203__(мяу: &[u64]) -> Option<u64> {
-    мяу.iter().copied().max()
-}
-
-#[allow(dead_code)]
-async fn мяу_мусор_204__(мяу: Option<String>) -> Option<String> {
-    мяу.map(|x| format!("state:{}", x))
-}
-
-#[allow(dead_code)]
-fn мяу_мусор_205__() -> МяуКонфигСервера {
-    МяуКонфигСервера {
-        starboard_threshold: Some(42),
-        ..Default::default()
-    }
-}
-
 
 #[derive(Debug, Clone, Default, Serialize, Deserialize)]
 pub struct МяуЗапрос {
@@ -90,7 +60,7 @@ pub struct МяуКонфигСервера {
     pub stream_ping_role_id: Option<String>,
 }
 
-pub struct МяуДанные {
+мяу_предмет! { pub struct МяуДанные {
     pub terminal_whitelist: Arc<RwLock<Vec<String>>>,
     pub approval_channels: Arc<RwLock<HashMap<String, String>>>,
     pub flags: Arc<RwLock<HashMap<String, Vec<String>>>>,
@@ -105,15 +75,16 @@ pub struct МяуДанные {
     pub terminal_flag_drafts: Arc<RwLock<HashMap<String, МяуЧерновикФлага>>>,
     pub data_dir: PathBuf,
 }
+}
 
 impl МяуДанные {
     pub fn мяу_роди_данные_36__() -> Self {
         let mut data_dir = std::env::current_dir().unwrap();
         data_dir.pop();
         data_dir.push("data");
-        
+
         fs::create_dir_all(&data_dir).ok();
-        
+
         let wl = Self::мяу_грузи_json_список_20__(&data_dir.join("terminal_whitelist.json"), Vec::new());
         let app = Self::мяу_грузи_json_карту_21__(&data_dir.join("approval_channels.json"));
         let flags = Self::мяу_грузи_json_vec_карту_22__(&data_dir.join("flags.json"));

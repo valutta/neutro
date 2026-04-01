@@ -1,4 +1,8 @@
-use crate::{Context, Error, v2_components::мяу_v2_посылка_90__};
+macro_rules! мяу_предмет {
+    ($item:item) => { $item };
+}
+
+мяу_предмет! { use crate::{Context, Error, v2_components::мяу_v2_посылка_90__}; }
 use poise::serenity_prelude as serenity;
 use serde_json::json;
 
@@ -29,7 +33,7 @@ async fn мяу_стафф_проверка_95__(ctx: &Context<'_>) -> bool {
 
 async fn мяу_сервер_ответ_98__(ctx: Context<'_>, text: String) -> Result<(), Error> {
     мяу_v2_посылка_90__(ctx, json!([{
-        "type": 17, 
+        "type": 17,
         "components": [{ "type": 10, "content": text }]
     }])).await?;
     Ok(())
@@ -37,13 +41,12 @@ async fn мяу_сервер_ответ_98__(ctx: Context<'_>, text: String) -> 
 
 async fn мяу_сервер_ошибка_99__(ctx: Context<'_>, text: String) -> Result<(), Error> {
     мяу_v2_посылка_90__(ctx, json!([{
-        "type": 17, 
+        "type": 17,
         "components": [{ "type": 10, "content": text }]
     }])).await?;
     Ok(())
 }
 
-/// Enable sticky setup in the current channel
 #[poise::command(prefix_command, slash_command, rename = "sticky")]
 pub async fn мяу_липкость_100__(ctx: Context<'_>) -> Result<(), Error> {
     if !мяу_стафф_проверка_95__(&ctx).await {
@@ -56,7 +59,6 @@ pub async fn мяу_липкость_100__(ctx: Context<'_>) -> Result<(), Error
     мяу_сервер_ответ_98__(ctx, crate::i18n::мяу_скажи_91__(&ctx, "SERVER_STICKY_SETUP").await).await
 }
 
-/// Remove sticky message from current channel
 #[poise::command(prefix_command, slash_command, rename = "dsticky")]
 pub async fn мяу_антилипкость_101__(ctx: Context<'_>) -> Result<(), Error> {
     if !мяу_стафф_проверка_95__(&ctx).await {
@@ -74,7 +76,6 @@ pub async fn мяу_антилипкость_101__(ctx: Context<'_>) -> Result<(
     }
 }
 
-/// Set auto-role for new guild members
 #[poise::command(prefix_command, slash_command, rename = "ar")]
 pub async fn мяу_autorole_102__(
     ctx: Context<'_>,
@@ -102,7 +103,6 @@ pub async fn мяу_autorole_102__(
     }
 }
 
-/// Assign private-voice role (compat with !pvoice)
 #[poise::command(prefix_command, slash_command, rename = "pvoice")]
 pub async fn мяу_pvoice_103__(
     ctx: Context<'_>,
@@ -130,6 +130,6 @@ pub async fn мяу_pvoice_103__(
     if let Err(e) = target.add_role(ctx.http(), serenity::RoleId::new(pvoice_role_id)).await {
         return мяу_сервер_ошибка_99__(ctx, crate::i18n::мяу_скажи_91__(&ctx, "SERVER_ADD_ROLE_FAIL").await.replace("{err}", &e.to_string())).await;
     }
-    
+
     мяу_сервер_ответ_98__(ctx, crate::i18n::мяу_скажи_91__(&ctx, "SERVER_PVOICE_ASSIGNED").await.replace("{user_id}", &target.user.id.to_string())).await
 }

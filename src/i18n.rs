@@ -1,6 +1,10 @@
-use std::collections::HashMap;
-use crate::Context;
-use crate::state::МяуДанные;
+macro_rules! мяу_предмет {
+    ($item:item) => { $item };
+}
+
+мяу_предмет! { use std::collections::HashMap; }
+мяу_предмет! { use crate::Context; }
+мяу_предмет! { use crate::state::МяуДанные; }
 use poise::serenity_prelude as serenity;
 
 macro_rules! мяф {
@@ -32,7 +36,7 @@ pub async fn мяу_язык_сервера_92__(data: &МяуДанные, guil
 
 fn мяу_словарь_93__(lang: &str) -> HashMap<&'static str, &'static str> {
     мяф!(mut мяу_карта <- HashMap::new());
-    
+
     match lang {
         "en" => {
             мяу_карта.insert("ERR_NO_STAFF", "You do not have staff permissions for this command.");
@@ -93,7 +97,7 @@ fn мяу_словарь_93__(lang: &str) -> HashMap<&'static str, &'static str>
             мяу_карта.insert("MOD_ANNOUNCE_SENT", "Announcement sent.");
             мяу_карта.insert("MOD_STREAM_TEXT", "<@&{role_id}> {user} started a stream. Watch here: {link}");
         }
-        _ => { // "ru" as default
+        _ => {
             мяу_карта.insert("ERR_NO_STAFF", "У тебя нет прав стаффа для этой команды.");
             мяу_карта.insert("ERR_NO_GUILD", "Команда доступна только на сервере.");
             мяу_карта.insert("KICK_SUCCESS", "Кикнул {user}. Причина: {reason}");
