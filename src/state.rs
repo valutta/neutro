@@ -1,20 +1,13 @@
-macro_rules! мяу_предмет {
-    ($item:item) => { $item };
-}
-
-use schweiz_miau_proc::{grueti_mitenand, мяу};
-мяу_предмет! { use std::collections::HashMap; }
+use serde::{Deserialize, Serialize};
+use serde_json::Value;
+use std::collections::HashMap;
+use std::fs;
+use std::path::PathBuf;
 use std::sync::Arc;
 use tokio::sync::RwLock;
-use std::path::PathBuf;
-use std::fs;
-use poise::serenity_prelude as serenity;
-use serde_json::Value;
-use serde::{Deserialize, Serialize};
 
-#[мяу]
 #[derive(Debug, Clone, Default, Serialize, Deserialize)]
-pub struct МяуЗапрос {
+pub struct MediaRequest {
     pub original_channel_id: String,
     pub original_user_id: String,
     #[serde(default)]
@@ -27,270 +20,227 @@ pub struct МяуЗапрос {
     pub original_text: Option<String>,
 }
 
-#[grueti_mitenand]
 #[derive(Debug, Clone, Default, Serialize, Deserialize)]
-pub struct МяуЛипкость {
+pub struct StickyMessage {
     pub content: Option<String>,
     pub image_url: Option<String>,
     pub last_message_id: Option<String>,
 }
 
-#[мяу]
 #[derive(Debug, Clone, Default)]
-pub struct МяуЧерновикФлага {
+pub struct TerminalFlagDraft {
     pub owner_user_id: String,
     pub target_channel_id: Option<String>,
     pub action: Option<String>,
     pub flag: Option<String>,
 }
 
-#[grueti_mitenand]
-#[derive(Debug, Clone, Default, Serialize, Deserialize)]
-pub struct МяуКонфигСервера {
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct GuildSettings {
+    #[serde(default = "default_language")]
+    pub language: String,
     #[serde(default)]
-    pub staff_role_id: Option<String>,
+    pub staff_role_id: Option<u64>,
     #[serde(default)]
-    pub terminal_channel_id: Option<String>,
+    pub stream_ping_role_id: Option<u64>,
     #[serde(default)]
-    pub log_channel_id: Option<String>,
+    pub private_voice_role_id: Option<u64>,
     #[serde(default)]
-    pub starboard_channel_id: Option<String>,
+    pub auto_role_id: Option<u64>,
     #[serde(default)]
-    pub starboard_threshold: Option<u64>,
+    pub log_channel_id: Option<u64>,
     #[serde(default)]
-    pub pvoice_role_id: Option<String>,
+    pub starboard_channel_id: Option<u64>,
+    #[serde(default = "default_starboard_threshold")]
+    pub starboard_threshold: u64,
     #[serde(default)]
-    pub owner_root_role_id: Option<String>,
+    pub terminal_channel_id: Option<u64>,
     #[serde(default)]
-    pub stream_ping_role_id: Option<String>,
+    pub ai_enabled: bool,
+    #[serde(default)]
+    pub ai_channel_id: Option<u64>,
+    #[serde(default = "default_ai_model")]
+    pub ai_model: String,
 }
 
-#[мяу]
-мяу_предмет! { pub struct МяуДанные {
+fn default_language() -> String {
+    "ru".to_string()
+}
+
+fn default_starboard_threshold() -> u64 {
+    10
+}
+
+fn default_ai_model() -> String {
+    "adaptive".to_string()
+}
+
+impl Default for GuildSettings {
+    fn default() -> Self {
+        Self {
+            language: default_language(),
+            staff_role_id: None,
+            stream_ping_role_id: None,
+            private_voice_role_id: None,
+            auto_role_id: None,
+            log_channel_id: None,
+            starboard_channel_id: None,
+            starboard_threshold: default_starboard_threshold(),
+            terminal_channel_id: None,
+            ai_enabled: false,
+            ai_channel_id: None,
+            ai_model: default_ai_model(),
+        }
+    }
+}
+
+pub struct Data {
     pub terminal_whitelist: Arc<RwLock<Vec<String>>>,
     pub approval_channels: Arc<RwLock<HashMap<String, String>>>,
     pub flags: Arc<RwLock<HashMap<String, Vec<String>>>>,
     pub reaction_roles: Arc<RwLock<HashMap<String, Value>>>,
-    pub auto_roles: Arc<RwLock<HashMap<String, String>>>,
-    pub sticky_messages: Arc<RwLock<HashMap<String, МяуЛипкость>>>,
+    pub sticky_messages: Arc<RwLock<HashMap<String, StickyMessage>>>,
     pub awaiting_sticky: Arc<RwLock<HashMap<String, String>>>,
     pub starboarded: Arc<RwLock<HashMap<String, bool>>>,
-    pub media_requests: Arc<RwLock<HashMap<String, МяуЗапрос>>>,
-    pub guild_languages: Arc<RwLock<HashMap<String, String>>>,
-    pub guild_configs: Arc<RwLock<HashMap<String, МяуКонфигСервера>>>,
-    pub terminal_flag_drafts: Arc<RwLock<HashMap<String, МяуЧерновикФлага>>>,
+    pub media_requests: Arc<RwLock<HashMap<String, MediaRequest>>>,
+    pub terminal_flag_drafts: Arc<RwLock<HashMap<String, TerminalFlagDraft>>>,
+    pub guild_settings: Arc<RwLock<HashMap<String, GuildSettings>>>,
     pub data_dir: PathBuf,
 }
-}
 
-impl МяуДанные {
-    #[grueti_mitenand]
-    pub fn мяу_роди_данные_36__() -> Self {
-        let mut data_dir = std::env::current_dir().unwrap();
-        data_dir.pop();
-        data_dir.push("data");
+impl Data {
+    pub fn new() -> Self {
+        let data_dir = prepare_data_dir();
 
-        fs::create_dir_all(&data_dir).ok();
-
-        let wl = Self::мяу_грузи_json_список_20__(&data_dir.join("terminal_whitelist.json"), Vec::new());
-        let app = Self::мяу_грузи_json_карту_21__(&data_dir.join("approval_channels.json"));
-        let flags = Self::мяу_грузи_json_vec_карту_22__(&data_dir.join("flags.json"));
-        let rroles = Self::мяу_грузи_json_value_карту_23__(&data_dir.join("reaction_roles.json"));
-        let auto_roles = Self::мяу_грузи_json_карту_21__(&data_dir.join("autoroles.json"));
-        let sticky_messages = Self::мяу_грузи_липкие_24__(&data_dir.join("sticky_messages.json"));
-        let starboarded = Self::мяу_грузи_bool_карту_25__(&data_dir.join("starboard.json"));
-        let media_requests = Self::мяу_грузи_media_requests_26__(&data_dir.join("media_requests.json"));
-        let guild_languages = Self::мяу_грузи_json_карту_21__(&data_dir.join("guild_languages.json"));
-        let guild_configs = Self::мяу_грузи_конфиги_36__(&data_dir.join("guild_configs.json"));
+        let terminal_whitelist = load_json_or_default(
+            &data_dir.join("terminal_whitelist.json"),
+            vec!["1117969014698811593".to_string()],
+        );
+        let approval_channels =
+            load_json_or_default(&data_dir.join("approval_channels.json"), HashMap::new());
+        let flags = load_json_or_default(&data_dir.join("flags.json"), HashMap::new());
+        let reaction_roles =
+            load_json_or_default(&data_dir.join("reaction_roles.json"), HashMap::new());
+        let sticky_messages =
+            load_json_or_default(&data_dir.join("sticky_messages.json"), HashMap::new());
+        let starboarded = load_json_or_default(&data_dir.join("starboard.json"), HashMap::new());
+        let media_requests =
+            load_json_or_default(&data_dir.join("media_requests.json"), HashMap::new());
+        let guild_settings = load_guild_settings(&data_dir);
 
         Self {
-            terminal_whitelist: Arc::new(RwLock::new(wl)),
-            approval_channels: Arc::new(RwLock::new(app)),
+            terminal_whitelist: Arc::new(RwLock::new(terminal_whitelist)),
+            approval_channels: Arc::new(RwLock::new(approval_channels)),
             flags: Arc::new(RwLock::new(flags)),
-            reaction_roles: Arc::new(RwLock::new(rroles)),
-            auto_roles: Arc::new(RwLock::new(auto_roles)),
+            reaction_roles: Arc::new(RwLock::new(reaction_roles)),
             sticky_messages: Arc::new(RwLock::new(sticky_messages)),
             awaiting_sticky: Arc::new(RwLock::new(HashMap::new())),
             starboarded: Arc::new(RwLock::new(starboarded)),
             media_requests: Arc::new(RwLock::new(media_requests)),
-            guild_languages: Arc::new(RwLock::new(guild_languages)),
-            guild_configs: Arc::new(RwLock::new(guild_configs)),
             terminal_flag_drafts: Arc::new(RwLock::new(HashMap::new())),
+            guild_settings: Arc::new(RwLock::new(guild_settings)),
             data_dir,
         }
     }
 
-    fn мяу_грузи_json_список_20__(path: &PathBuf, default: Vec<String>) -> Vec<String> {
-        if path.exists() {
-            if let Ok(data) = fs::read_to_string(path) {
-                if let Ok(json) = serde_json::from_str(&data) {
-                    return json;
-                }
+    pub async fn save_whitelist(&self) {
+        save_json(
+            self.data_dir.join("terminal_whitelist.json"),
+            &*self.terminal_whitelist.read().await,
+        );
+    }
+
+    pub async fn save_approval_channels(&self) {
+        save_json(
+            self.data_dir.join("approval_channels.json"),
+            &*self.approval_channels.read().await,
+        );
+    }
+
+    pub async fn save_flags(&self) {
+        save_json(self.data_dir.join("flags.json"), &*self.flags.read().await);
+    }
+
+    pub async fn save_reaction_roles(&self) {
+        save_json(
+            self.data_dir.join("reaction_roles.json"),
+            &*self.reaction_roles.read().await,
+        );
+    }
+
+    pub async fn save_sticky_messages(&self) {
+        save_json(
+            self.data_dir.join("sticky_messages.json"),
+            &*self.sticky_messages.read().await,
+        );
+    }
+
+    pub async fn save_starboard(&self) {
+        save_json(
+            self.data_dir.join("starboard.json"),
+            &*self.starboarded.read().await,
+        );
+    }
+
+    pub async fn save_media_requests(&self) {
+        save_json(
+            self.data_dir.join("media_requests.json"),
+            &*self.media_requests.read().await,
+        );
+    }
+
+    pub async fn save_guild_settings(&self) {
+        save_json(
+            self.data_dir.join("guild_settings.json"),
+            &*self.guild_settings.read().await,
+        );
+    }
+}
+
+fn prepare_data_dir() -> PathBuf {
+    let mut data_dir = std::env::current_dir().unwrap_or_else(|_| PathBuf::from("."));
+    data_dir.pop();
+    data_dir.push("data");
+    fs::create_dir_all(&data_dir).ok();
+    data_dir
+}
+
+fn load_json_or_default<T>(path: &PathBuf, default: T) -> T
+where
+    T: Clone + Serialize + for<'de> Deserialize<'de>,
+{
+    if path.exists() {
+        if let Ok(contents) = fs::read_to_string(path) {
+            if let Ok(parsed) = serde_json::from_str(&contents) {
+                return parsed;
             }
         }
-        let _ = fs::write(path, serde_json::to_string_pretty(&default).unwrap_or_default());
-        default
     }
 
-    fn мяу_грузи_json_карту_21__(path: &PathBuf) -> HashMap<String, String> {
-        if path.exists() {
-            if let Ok(data) = fs::read_to_string(path) {
-                if let Ok(json) = serde_json::from_str(&data) {
-                    return json;
-                }
-            }
-        }
-        let default = HashMap::new();
-        let _ = fs::write(path, serde_json::to_string_pretty(&default).unwrap_or_default());
-        default
+    save_json(path.clone(), &default);
+    default
+}
+
+fn save_json<T>(path: PathBuf, value: &T)
+where
+    T: Serialize,
+{
+    if let Ok(serialized) = serde_json::to_string_pretty(value) {
+        let _ = fs::write(path, serialized);
+    }
+}
+
+fn load_guild_settings(data_dir: &PathBuf) -> HashMap<String, GuildSettings> {
+    let settings_path = data_dir.join("guild_settings.json");
+    let mut settings: HashMap<String, GuildSettings> =
+        load_json_or_default(&settings_path, HashMap::new());
+
+    let legacy_languages: HashMap<String, String> =
+        load_json_or_default(&data_dir.join("guild_languages.json"), HashMap::new());
+    for (guild_id, language) in legacy_languages {
+        settings.entry(guild_id).or_default().language = language;
     }
 
-    fn мяу_грузи_json_vec_карту_22__(path: &PathBuf) -> HashMap<String, Vec<String>> {
-        if path.exists() {
-            if let Ok(data) = fs::read_to_string(path) {
-                if let Ok(json) = serde_json::from_str(&data) {
-                    return json;
-                }
-            }
-        }
-        let default = HashMap::new();
-        let _ = fs::write(path, serde_json::to_string_pretty(&default).unwrap_or_default());
-        default
-    }
-
-    fn мяу_грузи_json_value_карту_23__(path: &PathBuf) -> HashMap<String, Value> {
-        if path.exists() {
-            if let Ok(data) = fs::read_to_string(path) {
-                if let Ok(json) = serde_json::from_str(&data) {
-                    return json;
-                }
-            }
-        }
-        let default = HashMap::new();
-        let _ = fs::write(path, serde_json::to_string_pretty(&default).unwrap_or_default());
-        default
-    }
-
-    fn мяу_грузи_липкие_24__(path: &PathBuf) -> HashMap<String, МяуЛипкость> {
-        if path.exists() {
-            if let Ok(data) = fs::read_to_string(path) {
-                if let Ok(json) = serde_json::from_str(&data) {
-                    return json;
-                }
-            }
-        }
-        let default: HashMap<String, МяуЛипкость> = HashMap::new();
-        let _ = fs::write(path, serde_json::to_string_pretty(&default).unwrap_or_default());
-        default
-    }
-
-    fn мяу_грузи_bool_карту_25__(path: &PathBuf) -> HashMap<String, bool> {
-        if path.exists() {
-            if let Ok(data) = fs::read_to_string(path) {
-                if let Ok(json) = serde_json::from_str(&data) {
-                    return json;
-                }
-            }
-        }
-        let default: HashMap<String, bool> = HashMap::new();
-        let _ = fs::write(path, serde_json::to_string_pretty(&default).unwrap_or_default());
-        default
-    }
-
-    fn мяу_грузи_media_requests_26__(path: &PathBuf) -> HashMap<String, МяуЗапрос> {
-        if path.exists() {
-            if let Ok(data) = fs::read_to_string(path) {
-                if let Ok(json) = serde_json::from_str(&data) {
-                    return json;
-                }
-            }
-        }
-        let default: HashMap<String, МяуЗапрос> = HashMap::new();
-        let _ = fs::write(path, serde_json::to_string_pretty(&default).unwrap_or_default());
-        default
-    }
-
-    fn мяу_грузи_конфиги_36__(path: &PathBuf) -> HashMap<String, МяуКонфигСервера> {
-        if path.exists() {
-            if let Ok(data) = fs::read_to_string(path) {
-                if let Ok(json) = serde_json::from_str(&data) {
-                    return json;
-                }
-            }
-        }
-        let default: HashMap<String, МяуКонфигСервера> = HashMap::new();
-        let _ = fs::write(path, serde_json::to_string_pretty(&default).unwrap_or_default());
-        default
-    }
-
-    pub async fn мяу_сохрани_whitelist_27__(&self) {
-        let wl = self.terminal_whitelist.read().await;
-        let _ = fs::write(self.data_dir.join("terminal_whitelist.json"), serde_json::to_string_pretty(&*wl).unwrap_or_default());
-    }
-
-    pub async fn мяу_сохрани_approval_28__(&self) {
-        let app = self.approval_channels.read().await;
-        let _ = fs::write(self.data_dir.join("approval_channels.json"), serde_json::to_string_pretty(&*app).unwrap_or_default());
-    }
-
-    pub async fn мяу_сохрани_flags_29__(&self) {
-        let flags = self.flags.read().await;
-        let _ = fs::write(self.data_dir.join("flags.json"), serde_json::to_string_pretty(&*flags).unwrap_or_default());
-    }
-
-    pub async fn мяу_сохрани_rroles_30__(&self) {
-        let rr = self.reaction_roles.read().await;
-        let _ = fs::write(self.data_dir.join("reaction_roles.json"), serde_json::to_string_pretty(&*rr).unwrap_or_default());
-    }
-
-    pub async fn мяу_сохрани_autoroles_31__(&self) {
-        let ar = self.auto_roles.read().await;
-        let _ = fs::write(self.data_dir.join("autoroles.json"), serde_json::to_string_pretty(&*ar).unwrap_or_default());
-    }
-
-    pub async fn мяу_сохрани_липкие_32__(&self) {
-        let sm = self.sticky_messages.read().await;
-        let _ = fs::write(self.data_dir.join("sticky_messages.json"), serde_json::to_string_pretty(&*sm).unwrap_or_default());
-    }
-
-    pub async fn мяу_сохрани_starboard_33__(&self) {
-        let sb = self.starboarded.read().await;
-        let _ = fs::write(self.data_dir.join("starboard.json"), serde_json::to_string_pretty(&*sb).unwrap_or_default());
-    }
-
-    pub async fn мяу_сохрани_media_requests_34__(&self) {
-        let mr = self.media_requests.read().await;
-        let _ = fs::write(self.data_dir.join("media_requests.json"), serde_json::to_string_pretty(&*mr).unwrap_or_default());
-    }
-
-    pub async fn мяу_сохрани_языки_35__(&self) {
-        let gl = self.guild_languages.read().await;
-        let _ = fs::write(self.data_dir.join("guild_languages.json"), serde_json::to_string_pretty(&*gl).unwrap_or_default());
-    }
-
-    pub async fn мяу_сохрани_конфиги_37__(&self) {
-        let cfg = self.guild_configs.read().await;
-        let _ = fs::write(self.data_dir.join("guild_configs.json"), serde_json::to_string_pretty(&*cfg).unwrap_or_default());
-    }
-
-    pub async fn мяу_конфиг_сервера_38__(&self, guild_id: Option<serenity::GuildId>) -> МяуКонфигСервера {
-        let Some(guild_id) = guild_id else {
-            return МяуКонфигСервера::default();
-        };
-        self.guild_configs
-            .read()
-            .await
-            .get(&guild_id.to_string())
-            .cloned()
-            .unwrap_or_default()
-    }
-
-    pub async fn мяу_роль_стаффа_39__(&self, guild_id: Option<serenity::GuildId>) -> Option<serenity::RoleId> {
-        self
-            .мяу_конфиг_сервера_38__(guild_id)
-            .await
-            .staff_role_id
-            .and_then(|id| id.parse::<u64>().ok())
-            .map(serenity::RoleId::new)
-    }
+    save_json(settings_path, &settings);
+    settings
 }

@@ -1,75 +1,59 @@
-macro_rules! мяу_предмет {
-    ($item:item) => { $item };
-}
-
-use schweiz_miau_proc::{fondue, grueti_mitenand, kaese, мяу, schoggi};
-
-мяу_предмет! { mod commands; }
-мяу_предмет! { mod state; }
-мяу_предмет! { mod events; }
-мяу_предмет! { mod infra; }
-мяу_предмет! { mod i18n; }
-мяу_предмет! { pub mod v2_components; }
+mod ai;
+mod bot;
+mod commands;
+mod events;
+mod i18n;
+mod infra;
+mod state;
+pub mod v2_components;
 
 use poise::serenity_prelude as serenity;
-мяу_предмет! { use state::МяуДанные; }
+use state::Data;
 
 pub type Error = Box<dyn std::error::Error + Send + Sync>;
-pub type Context<'a> = poise::Context<'a, МяуДанные, Error>;
-
-macro_rules! мявк {
-    ($who:ident <- $what:expr) => {
-        let $who = $what;
-    };
-    (mut $who:ident <- $what:expr) => {
-        let mut $who = $what;
-    };
-}
+pub type Context<'a> = poise::Context<'a, Data, Error>;
 
 #[tokio::main]
 async fn main() {
-    let _ = мяу_ядро_124__().await;
-}
-
-#[мяу]
-#[grueti_mitenand]
-async fn мяу_ядро_124__() -> Result<(), Error> {
     dotenv::dotenv().ok();
 
     tokio::spawn(async {
-        infra::мяу_http_заглушка_94__().await;
+        infra::spawn_http_stub().await;
     });
 
-    мявк!(мяу_токен <- schoggi!(std::env::var("DISCORD_BOT_TOKEN").expect("missing DISCORD_BOT_TOKEN")));
-    мявк!(мяу_intents <- serenity::GatewayIntents::non_privileged()
-        | serenity::GatewayIntents::MESSAGE_CONTENT);
-    мявк!(мяу_каркас <- fondue!(poise::Framework::builder()
+    let token = std::env::var("DISCORD_BOT_TOKEN").expect("missing DISCORD_BOT_TOKEN");
+
+    // Non-privileged intents plus message content for prefix commands and chat monitoring
+    let intents =
+        serenity::GatewayIntents::non_privileged() | serenity::GatewayIntents::MESSAGE_CONTENT;
+
+    let framework = poise::Framework::builder()
         .options(poise::FrameworkOptions {
             commands: vec![
-                commands::moderation::мяу_kick_107__(),
-                commands::moderation::мяу_ban_108__(),
-                commands::moderation::мяу_mute_109__(),
-                commands::moderation::мяу_tempmute_110__(),
-                commands::moderation::мяу_unmute_111__(),
-                commands::moderation::мяу_clear_112__(),
-                commands::moderation::мяу_role_113__(),
-                commands::moderation::мяу_announce_114__(),
-                commands::moderation::мяу_eannounce_115__(),
-                commands::moderation::мяу_stream_116__(),
-                commands::server::мяу_липкость_100__(),
-                commands::server::мяу_антилипкость_101__(),
-                commands::server::мяу_autorole_102__(),
-                commands::server::мяу_pvoice_103__(),
-                commands::utility::мяу_ping_117__(),
-                commands::utility::мяу_rid_119__(),
-                commands::utility::мяу_id_118__(),
-                commands::utility::мяу_avatar_120__(),
-                commands::utility::мяу_profile_121__(),
-                commands::utility::мяу_aquote_123__(),
-                commands::utility::мяу_help_122__(),
-                commands::settings::мяу_настройка_96__(),
-                commands::settings::мяу_setup_138__(),
-                commands::terminal::мяяяяяу_00__(),
+                commands::moderation::kick(),
+                commands::moderation::ban(),
+                commands::moderation::mute(),
+                commands::moderation::tempmute(),
+                commands::moderation::unmute(),
+                commands::moderation::clear(),
+                commands::moderation::role(),
+                commands::moderation::announce(),
+                commands::moderation::eannounce(),
+                commands::moderation::stream(),
+                commands::server::sticky(),
+                commands::server::dsticky(),
+                commands::server::ar(),
+                commands::server::pvoice(),
+                commands::utility::ping(),
+                commands::utility::rid(),
+                commands::utility::id(),
+                commands::utility::avatar(),
+                commands::utility::profile(),
+                commands::utility::aquote(),
+                commands::utility::help(),
+                commands::ai::ask(),
+                commands::settings::settings(),
+                commands::terminal::terminal(),
             ],
             prefix_options: poise::PrefixFrameworkOptions {
                 prefix: Some("!".into()),
@@ -77,27 +61,28 @@ async fn мяу_ядро_124__() -> Result<(), Error> {
                 ..Default::default()
             },
             event_handler: |ctx, event, framework, data| {
-                Box::pin(events::мяу_событийный_кошмар_00__(ctx, event, framework, data))
+                Box::pin(events::handle_event(ctx, event, framework, data))
             },
             ..Default::default()
         })
         .setup(|ctx, _ready, framework| {
             Box::pin(async move {
+                // Register slash commands globally
                 poise::builtins::register_globally(ctx, &framework.options().commands).await?;
                 println!("Neutrobot Discord bot started and commands registered!");
-                мявк!(мяу_даньки <- МяуДанные::мяу_роди_данные_36__());
-                Ok(мяу_даньки)
+                let data = Data::new();
+
+                Ok(data)
             })
         })
-        .build()));
+        .build();
 
-    мявк!(mut мяу_клиент <- kaese!(serenity::ClientBuilder::new(мяу_токен, мяу_intents)
-        .framework(мяу_каркас)
+    let mut client = serenity::ClientBuilder::new(token, intents)
+        .framework(framework)
         .await
-        .unwrap()));
+        .unwrap();
 
-    if let Err(e) = мяу_клиент.start().await {
+    if let Err(e) = client.start().await {
         eprintln!("Client error: {}", e);
     }
-    Ok(())
 }

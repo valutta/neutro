@@ -1,21 +1,16 @@
-macro_rules! мяу_предмет {
-    ($item:item) => { $item };
-}
-
-use schweiz_miau_proc::{fondue, grueti_mitenand, мяу, schoggi};
-мяу_предмет! {
 use crate::{
-    Error,
-    state::{МяуДанные, МяуЗапрос, МяуЛипкость},
+    Data, Error,
+    ai::{VertexClient, load_prompt_images, strip_bot_mention},
+    bot::guild_settings,
+    state::{MediaRequest, StickyMessage},
 };
-}
 use poise::serenity_prelude as serenity;
 use serde_json::json;
-use serenity::{CreateEmbed, Color};
+use serenity::{Color, CreateEmbed};
 use std::path::{Path, PathBuf};
 use tokio::fs;
 
-fn мяу_вытяни_шнурки_01__(input: &str) -> Vec<String> {
+fn extract_urls(input: &str) -> Vec<String> {
     input
         .split_whitespace()
         .filter(|w| w.starts_with("http://") || w.starts_with("https://"))
@@ -23,32 +18,30 @@ fn мяу_вытяни_шнурки_01__(input: &str) -> Vec<String> {
         .collect()
 }
 
-fn мяу_собери_галерею_02__(urls: impl IntoIterator<Item = String>) -> Vec<serde_json::Value> {
+fn build_media_gallery_items(urls: impl IntoIterator<Item = String>) -> Vec<serde_json::Value> {
     urls.into_iter()
         .take(10)
         .map(|url| json!({ "media": { "url": url } }))
         .collect()
 }
 
-fn мяу_это_прямое_медиа_03__(url: &str) -> bool {
-    let lower = url
-        .split('?')
-        .next()
-        .unwrap_or(url)
-        .to_ascii_lowercase();
-    [".png", ".jpg", ".jpeg", ".gif", ".webp", ".mp4", ".webm", ".mov", ".avif"]
-        .iter()
-        .any(|ext| lower.ends_with(ext))
+fn is_direct_media_url(url: &str) -> bool {
+    let lower = url.split('?').next().unwrap_or(url).to_ascii_lowercase();
+    [
+        ".png", ".jpg", ".jpeg", ".gif", ".webp", ".mp4", ".webm", ".mov", ".avif",
+    ]
+    .iter()
+    .any(|ext| lower.ends_with(ext))
 }
 
-fn мяу_вскрой_мету_04__(body: &str, marker: &str) -> Option<String> {
+fn extract_meta_content(body: &str, marker: &str) -> Option<String> {
     let start = body.find(marker)? + marker.len();
     let tail = &body[start..];
     let end = tail.find('"').or_else(|| tail.find('\''))?;
     Some(tail[..end].to_string())
 }
 
-fn мяу_вскрой_tenor_05__(body: &str) -> Option<String> {
+fn extract_tenor_media_url(body: &str) -> Option<String> {
     let normalized = body.replace("\\/", "/");
     for marker in [
         "property=\"og:video:secure_url\" content=\"",
@@ -58,8 +51,8 @@ fn мяу_вскрой_tenor_05__(body: &str) -> Option<String> {
         "property='og:video' content='",
         "property='og:image' content='",
     ] {
-        if let Some(url) = мяу_вскрой_мету_04__(&normalized, marker) {
-            if мяу_это_прямое_медиа_03__(&url) {
+        if let Some(url) = extract_meta_content(&normalized, marker) {
+            if is_direct_media_url(&url) {
                 return Some(url);
             }
         }
@@ -74,7 +67,7 @@ fn мяу_вскрой_tenor_05__(body: &str) -> Option<String> {
             .or_else(|| tail.find('<'))
             .unwrap_or(tail.len());
         let candidate = tail[..end].to_string();
-        if мяу_это_прямое_медиа_03__(&candidate) {
+        if is_direct_media_url(&candidate) {
             return Some(candidate);
         }
     }
@@ -82,8 +75,8 @@ fn мяу_вскрой_tenor_05__(body: &str) -> Option<String> {
     None
 }
 
-async fn мяу_разжуй_внешний_url_06__(url: &str) -> Option<String> {
-    if мяу_это_прямое_медиа_03__(url) {
+async fn resolve_external_media_url(url: &str) -> Option<String> {
+    if is_direct_media_url(url) {
         return Some(url.to_string());
     }
 
@@ -93,20 +86,20 @@ async fn мяу_разжуй_внешний_url_06__(url: &str) -> Option<String
 
     let response = reqwest::get(url).await.ok()?;
     let body = response.text().await.ok()?;
-    мяу_вскрой_tenor_05__(&body)
+    extract_tenor_media_url(&body)
 }
 
-async fn мяу_разжуй_url_ы_07__(urls: &[String]) -> Vec<String> {
+async fn resolve_media_urls(urls: &[String]) -> Vec<String> {
     let mut resolved = Vec::new();
     for url in urls {
-        if let Some(media_url) = мяу_разжуй_внешний_url_06__(url).await {
+        if let Some(media_url) = resolve_external_media_url(url).await {
             resolved.push(media_url);
         }
     }
     resolved
 }
 
-fn мяу_собери_вложения_08__(paths: &[String]) -> Vec<serde_json::Value> {
+fn build_attachment_media_items(paths: &[String]) -> Vec<serde_json::Value> {
     paths.iter()
         .filter_map(|path| {
             Path::new(path)
@@ -116,7 +109,7 @@ fn мяу_собери_вложения_08__(paths: &[String]) -> Vec<serde_json
         .collect()
 }
 
-async fn мяу_погрузи_вложения_09__(paths: &[String]) -> Vec<serenity::CreateAttachment> {
+async fn load_create_attachments(paths: &[String]) -> Vec<serenity::CreateAttachment> {
     let mut files = Vec::new();
     for path in paths {
         if let Ok(file) = serenity::CreateAttachment::path(path).await {
@@ -126,9 +119,9 @@ async fn мяу_погрузи_вложения_09__(paths: &[String]) -> Vec<se
     files
 }
 
-async fn мяу_утащи_request_вложения_10__(
+async fn download_request_attachments(
     ctx: &serenity::Context,
-    data: &МяуДанные,
+    data: &Data,
     message_id: serenity::MessageId,
     attachments: &[serenity::Attachment],
 ) -> Vec<String> {
@@ -160,7 +153,7 @@ async fn мяу_утащи_request_вложения_10__(
     stored
 }
 
-async fn мяу_сотри_request_хвосты_11__(paths: &[String]) {
+async fn cleanup_stored_request_files(paths: &[String]) {
     for path in paths {
         let _ = fs::remove_file(path).await;
     }
@@ -173,34 +166,32 @@ async fn мяу_сотри_request_хвосты_11__(paths: &[String]) {
     }
 }
 
-#[grueti_mitenand]
-async fn мяу_пошли_лог_12__(
+async fn send_log(
     ctx: &serenity::Context,
-    data: &МяуДанные,
+    data: &Data,
     guild_id: Option<serenity::GuildId>,
     title: &str,
     description: String,
     color: Color,
 ) {
-    let Some(log_channel_id) = data
-        .мяу_конфиг_сервера_38__(guild_id)
-        .await
-        .log_channel_id
-        .and_then(|id| id.parse::<u64>().ok())
-    else {
+    let Some(guild_id) = guild_id else {
         return;
     };
-    let embed = fondue!(CreateEmbed::new()
+    let Some(channel_id) = guild_settings(data, guild_id).await.log_channel_id else {
+        return;
+    };
+
+    let embed = CreateEmbed::new()
         .title(title)
-        .description(schoggi!(description))
+        .description(description)
         .color(color)
-        .timestamp(serenity::Timestamp::now()));
-    let _ = serenity::ChannelId::new(log_channel_id)
+        .timestamp(serenity::Timestamp::now());
+    let _ = serenity::ChannelId::new(channel_id)
         .send_message(ctx, serenity::CreateMessage::new().embed(embed))
         .await;
 }
 
-async fn мяу_найди_аудит_13__(
+async fn fetch_latest_audit_executor(
     ctx: &serenity::Context,
     guild_id: serenity::GuildId,
     action: serenity::audit_log::Action,
@@ -213,43 +204,42 @@ async fn мяу_найди_аудит_13__(
     Some((entry.user_id, entry.target_id.map(|t| t.get())))
 }
 
-#[мяу]
-#[grueti_mitenand]
-pub async fn мяу_событийный_кошмар_00__(
+pub async fn handle_event(
     ctx: &serenity::Context,
     event: &serenity::FullEvent,
-    _framework: poise::FrameworkContext<'_, МяуДанные, Error>,
-    data: &МяуДанные,
+    _framework: poise::FrameworkContext<'_, Data, Error>,
+    data: &Data,
 ) -> Result<(), Error> {
+    // This is the main event router for behavior that doesn't fit neatly into a command.
     match event {
         serenity::FullEvent::GuildMemberAddition { new_member } => {
-            let guild_key = new_member.guild_id.to_string();
-            let configured = data.auto_roles.read().await.get(&guild_key).cloned();
-            let fallback = std::env::var("AUTO_JOIN_ROLE_ID").ok();
-            if let Some(role_id_str) = configured.or(fallback) {
-                if let Ok(role_id) = role_id_str.parse::<u64>() {
-                    let _ = new_member.add_role(ctx, serenity::RoleId::new(role_id)).await;
-                }
+            let settings = guild_settings(data, new_member.guild_id).await;
+            let fallback = std::env::var("AUTO_JOIN_ROLE_ID")
+                .ok()
+                .and_then(|value| value.parse::<u64>().ok());
+            if let Some(role_id) = settings.auto_role_id.or(fallback) {
+                let _ = new_member
+                    .add_role(ctx, serenity::RoleId::new(role_id))
+                    .await;
             }
         }
         serenity::FullEvent::ReactionAdd { add_reaction } => {
-            мяу_реакционный_ужас_19__(ctx, data, add_reaction, true).await?;
+            handle_reaction(ctx, data, add_reaction, true).await?;
         }
         serenity::FullEvent::ReactionRemove { removed_reaction } => {
-            мяу_реакционный_ужас_19__(ctx, data, removed_reaction, false).await?;
+            handle_reaction(ctx, data, removed_reaction, false).await?;
         }
         serenity::FullEvent::Message { new_message } => {
             if !new_message.author.bot {
-                let terminal_channel_id = data
-                    .мяу_конфиг_сервера_38__(new_message.guild_id)
-                    .await
-                    .terminal_channel_id
-                    .and_then(|id| id.parse::<u64>().ok());
+                let terminal_channel_id =
+                    crate::bot::terminal_channel_id(data, new_message.guild_id).await;
                 if new_message.content.starts_with('!')
                     || new_message.content.starts_with('$')
-                    || terminal_channel_id.map(serenity::ChannelId::new) == Some(new_message.channel_id)
+                    || terminal_channel_id
+                        .map(|id| new_message.channel_id == serenity::ChannelId::new(id))
+                        .unwrap_or(false)
                 {
-                    мяу_пошли_лог_12__(
+                    send_log(
                         ctx,
                         data,
                         new_message.guild_id,
@@ -266,33 +256,49 @@ pub async fn мяу_событийный_кошмар_00__(
                     .await;
                 }
 
-                if мяу_request_очередь_15__(ctx, data, new_message).await? {
+                if handle_media_request_queue(ctx, data, new_message).await? {
                     return Ok(());
                 }
-                if crate::commands::terminal::мяяяяяу_30__(ctx, data, new_message).await? {
+                if crate::commands::terminal::handle_terminal_channel_message(
+                    ctx,
+                    data,
+                    new_message,
+                )
+                .await?
+                {
                     return Ok(());
                 }
-                if мяу_липкая_подготовка_17__(ctx, data, new_message).await? {
+                if handle_sticky_setup(ctx, data, new_message).await? {
                     return Ok(());
                 }
-                мяу_липкий_репост_18__(ctx, data, new_message).await?;
-                мяу_липкий_репост_18__(ctx, data, new_message).await?;
+                handle_ai_mention(ctx, data, new_message).await?;
+                handle_sticky_repost(ctx, data, new_message).await?;
             }
         }
         serenity::FullEvent::InteractionCreate { interaction } => {
             if let serenity::Interaction::Component(component) = interaction {
-                if crate::commands::terminal::мяяяяяу_29__(ctx, data, component).await? {
+                if crate::commands::terminal::handle_terminal_component_interaction(
+                    ctx, data, component,
+                )
+                .await?
+                {
                     return Ok(());
                 }
-                мяу_компонентный_ад_14__(ctx, data, component, _framework).await?;
+                handle_component_interaction(ctx, data, component, _framework).await?;
             }
         }
-        serenity::FullEvent::MessageDelete { channel_id, deleted_message_id, guild_id } => {
+        serenity::FullEvent::MessageDelete {
+            channel_id,
+            deleted_message_id,
+            guild_id,
+        } => {
             let deleted_by = if let Some(gid) = guild_id {
-                мяу_найди_аудит_13__(
+                fetch_latest_audit_executor(
                     ctx,
                     *gid,
-                    serenity::audit_log::Action::Message(serenity::audit_log::MessageAction::Delete),
+                    serenity::audit_log::Action::Message(
+                        serenity::audit_log::MessageAction::Delete,
+                    ),
                 )
                 .await
                 .map(|(u, _)| format!("<@{}>", u))
@@ -300,7 +306,7 @@ pub async fn мяу_событийный_кошмар_00__(
             } else {
                 "Unknown/Self".to_string()
             };
-            мяу_пошли_лог_12__(
+            send_log(
                 ctx,
                 data,
                 *guild_id,
@@ -313,7 +319,11 @@ pub async fn мяу_событийный_кошмар_00__(
             )
             .await;
         }
-        serenity::FullEvent::GuildMemberUpdate { old_if_available, new, event: _ } => {
+        serenity::FullEvent::GuildMemberUpdate {
+            old_if_available,
+            new,
+            event: _,
+        } => {
             if let Some(new_member) = new {
                 let old_roles = old_if_available
                     .as_ref()
@@ -339,7 +349,7 @@ pub async fn мяу_событийный_кошмар_00__(
                         changes.push(format!("**Removed:** {}", removed.join(", ")));
                     }
                     if !changes.is_empty() {
-                        let updated_by = мяу_найди_аудит_13__(
+                        let updated_by = fetch_latest_audit_executor(
                             ctx,
                             new_member.guild_id,
                             serenity::audit_log::Action::Member(
@@ -351,10 +361,14 @@ pub async fn мяу_событийный_кошмар_00__(
                             let is_target = target
                                 .map(|t| t.to_string() == new_member.user.id.to_string())
                                 .unwrap_or(false);
-                            if is_target { Some(format!("<@{}>", u)) } else { None }
+                            if is_target {
+                                Some(format!("<@{}>", u))
+                            } else {
+                                None
+                            }
                         })
                         .unwrap_or_else(|| "Unknown/Self".to_string());
-                        мяу_пошли_лог_12__(
+                        send_log(
                             ctx,
                             data,
                             Some(new_member.guild_id),
@@ -373,35 +387,150 @@ pub async fn мяу_событийный_кошмар_00__(
             }
         }
         serenity::FullEvent::UserUpdate { old_data, new } => {
-            let old_name = old_data.as_ref().map(|o| o.name.clone()).unwrap_or_default();
-            if old_name != new.name {
-                let guild_id = ctx.cache.guilds().into_iter().next();
-                мяу_пошли_лог_12__(
-                    ctx,
-                    data,
-                    guild_id,
-                    "👤 Username Changed",
-                    format!(
-                        "**User:** <@{}>\n**Old:** {}\n**New:** {}",
-                        new.id, old_name, new.name
-                    ),
-                    Color::new(0xff44aa),
-                ).await;
-            }
+            let _ = (old_data, new);
         }
         serenity::FullEvent::VoiceStateUpdate { old, new } => {
-            мяу_голосовой_кошмар_16__(ctx, data, old, new).await?;
+            handle_voice_state_event(ctx, data, old, new).await?;
         }
         _ => {}
     }
     Ok(())
 }
 
-async fn мяу_компонентный_ад_14__(
+async fn handle_ai_mention(
     ctx: &serenity::Context,
-    data: &МяуДанные,
+    data: &Data,
+    message: &serenity::Message,
+) -> Result<(), Error> {
+    // Mention-based AI replies are handled here so users don't need a prefix command.
+    let Some(guild_id) = message.guild_id else {
+        return Ok(());
+    };
+
+    let bot_user_id = ctx.cache.current_user().id;
+    let is_mention = message.mentions.iter().any(|user| user.id == bot_user_id);
+    if !is_mention {
+        return Ok(());
+    }
+
+    let settings = guild_settings(data, guild_id).await;
+    if !settings.ai_enabled {
+        return Ok(());
+    }
+
+    if let Some(channel_id) = settings.ai_channel_id {
+        if message.channel_id != serenity::ChannelId::new(channel_id) {
+            let restricted_message = serenity::CreateMessage::new()
+                .content(format!(
+                    "AI replies are restricted to <#{channel_id}> on this server."
+                ))
+                .allowed_mentions(serenity::CreateAllowedMentions::new());
+            let _ = message
+                .channel_id
+                .send_message(ctx, restricted_message)
+                .await;
+            return Ok(());
+        }
+    }
+
+    let current_text = strip_bot_mention(&message.content, bot_user_id.get());
+    if current_text.is_empty() {
+        let reply = serenity::CreateMessage::new()
+            .content("Ask a question in the same message when you tag me.")
+            .allowed_mentions(serenity::CreateAllowedMentions::new())
+            .reference_message(message);
+        let _ = message.channel_id.send_message(ctx, reply).await;
+        return Ok(());
+    }
+
+    let prompt = build_ai_prompt(ctx, message, &current_text).await;
+    let images = load_prompt_images(&message.attachments).await;
+    let client = VertexClient::from_env()?;
+    let response = match client
+        .generate_text(&settings.ai_model, &prompt, &images)
+        .await
+    {
+        Ok(response) => response,
+        Err(error) => {
+            let reply = serenity::CreateMessage::new()
+                .content(format!("Vertex AI request failed: {error}"))
+                .allowed_mentions(serenity::CreateAllowedMentions::new())
+                .reference_message(message);
+            let _ = message.channel_id.send_message(ctx, reply).await;
+            return Ok(());
+        }
+    };
+
+    let reply = serenity::CreateMessage::new()
+        .content(response.text)
+        .allowed_mentions(serenity::CreateAllowedMentions::new())
+        .reference_message(message);
+    let _ = message.channel_id.send_message(ctx, reply).await;
+    Ok(())
+}
+
+async fn build_ai_prompt(
+    ctx: &serenity::Context,
+    message: &serenity::Message,
+    current_text: &str,
+) -> String {
+    let mut lines = Vec::new();
+
+    if let Ok(mut history) = message
+        .channel_id
+        .messages(
+            ctx,
+            serenity::GetMessages::new().before(message.id).limit(20),
+        )
+        .await
+    {
+        history.reverse();
+
+        for entry in history {
+            if entry.content.trim().is_empty() && entry.attachments.is_empty() {
+                continue;
+            }
+
+            let speaker = display_name(&entry.author);
+            let content = entry.content.trim();
+
+            if content.is_empty() {
+                lines.push(format!("{speaker}: [attachment only]"));
+            } else {
+                lines.push(format!("{speaker}: {content}"));
+            }
+        }
+    }
+
+    let current_speaker = display_name(&message.author);
+    if message.attachments.is_empty() {
+        lines.push(format!("{current_speaker}: {current_text}"));
+    } else {
+        lines.push(format!(
+            "{current_speaker}: {current_text}\n[Attached images: {}]",
+            message.attachments.len()
+        ));
+    }
+
+    format!(
+        "Recent channel context, oldest first:\n{}\n\nReply to the latest user message.",
+        lines.join("\n")
+    )
+}
+
+fn display_name(user: &serenity::User) -> String {
+    user.global_name
+        .as_deref()
+        .filter(|name| !name.is_empty())
+        .unwrap_or(&user.name)
+        .to_string()
+}
+
+async fn handle_component_interaction(
+    ctx: &serenity::Context,
+    data: &Data,
     component: &serenity::ComponentInteraction,
-    _framework: poise::FrameworkContext<'_, МяуДанные, Error>,
+    _framework: poise::FrameworkContext<'_, Data, Error>,
 ) -> Result<(), Error> {
     let custom_id = &component.data.custom_id;
     if !custom_id.starts_with("media_") {
@@ -411,22 +540,38 @@ async fn мяу_компонентный_ад_14__(
     let msg_id = component.message.id.to_string();
     let req = data.media_requests.read().await.get(&msg_id).cloned();
     let Some(req) = req else {
-        let _ = component.create_response(ctx, serenity::CreateInteractionResponse::Message(
-            serenity::CreateInteractionResponseMessage::new().content("Request not found in state.").ephemeral(true)
-        )).await;
+        let _ = component
+            .create_response(
+                ctx,
+                serenity::CreateInteractionResponse::Message(
+                    serenity::CreateInteractionResponseMessage::new()
+                        .content("Request not found in state.")
+                        .ephemeral(true),
+                ),
+            )
+            .await;
         return Ok(());
     };
 
     if custom_id.starts_with("media_approve_") {
-        let original_ch = req.original_channel_id.parse::<u64>().ok().map(serenity::ChannelId::new);
+        let original_ch = req
+            .original_channel_id
+            .parse::<u64>()
+            .ok()
+            .map(serenity::ChannelId::new);
         if let Some(ch) = original_ch {
-            let mut media_items = мяу_собери_вложения_08__(&req.stored_files);
-            media_items.extend(мяу_собери_галерею_02__(req.content_urls.iter().cloned()));
-            media_items.extend(мяу_собери_галерею_02__(req.attachment_urls.iter().cloned()));
+            let mut media_items = build_attachment_media_items(&req.stored_files);
+            media_items.extend(build_media_gallery_items(req.content_urls.iter().cloned()));
+            media_items.extend(build_media_gallery_items(
+                req.attachment_urls.iter().cloned(),
+            ));
             media_items.truncate(10);
-            let files = мяу_погрузи_вложения_09__(&req.stored_files).await;
+            let files = load_create_attachments(&req.stored_files).await;
 
-            let mut display_text = format!("Approved by <@{}>\nOriginal sender <@{}>", component.user.id, req.original_user_id);
+            let mut display_text = format!(
+                "Approved by <@{}>\nOriginal sender <@{}>",
+                component.user.id, req.original_user_id
+            );
             if let Some(txt) = &req.original_text {
                 if !txt.is_empty() {
                     display_text.push_str(&format!("\n\n{}", txt));
@@ -438,10 +583,10 @@ async fn мяу_компонентный_ад_14__(
                     "flags": 1 << 15,
                     "components": [
                         {
-                            "type": 17,
+                            "type": 17, // CONTAINER
                             "components": [
                                 {
-                                    "type": 10,
+                                    "type": 10, // TEXT_DISPLAY
                                     "content": display_text
                                 }
                             ]
@@ -453,14 +598,14 @@ async fn мяу_компонентный_ад_14__(
                     "flags": 1 << 15,
                     "components": [
                         {
-                            "type": 17,
+                            "type": 17, // CONTAINER
                             "components": [
                                 {
-                                    "type": 10,
+                                    "type": 10, // TEXT_DISPLAY
                                     "content": display_text
                                 },
                                 {
-                                    "type": 12,
+                                    "type": 12, // MEDIA_GALLERY
                                     "items": media_items
                                 }
                             ]
@@ -484,31 +629,37 @@ async fn мяу_компонентный_ад_14__(
                 let ctx_clone = ctx.clone();
                 tokio::spawn(async move {
                     tokio::time::sleep(tokio::time::Duration::from_secs(24 * 60 * 60)).await;
-                    let _ = ch.delete_permission(&ctx_clone, serenity::PermissionOverwriteType::Member(target_user)).await;
+                    let _ = ch
+                        .delete_permission(
+                            &ctx_clone,
+                            serenity::PermissionOverwriteType::Member(target_user),
+                        )
+                        .await;
                 });
             }
         }
     }
 
-    мяу_сотри_request_хвосты_11__(&req.stored_files).await;
+    // Cleanup request and message
+    cleanup_stored_request_files(&req.stored_files).await;
     data.media_requests.write().await.remove(&msg_id);
-    data.мяу_сохрани_media_requests_34__().await;
+    data.save_media_requests().await;
     let _ = component.message.delete(ctx).await;
     let _ = component.defer(ctx).await;
 
     Ok(())
 }
 
-
-async fn мяу_request_очередь_15__(
+async fn handle_media_request_queue(
     ctx: &serenity::Context,
-    data: &МяуДанные,
+    data: &Data,
     message: &serenity::Message,
 ) -> Result<bool, Error> {
     if message.author.bot {
         return Ok(false);
     }
 
+    // Request queue is enabled only for channels marked with the "request" flag.
     let ch_id = message.channel_id.to_string();
     let has_request_flag = data
         .flags
@@ -526,9 +677,13 @@ async fn мяу_request_очередь_15__(
         return Ok(false);
     };
 
-    let urls_in_content = мяу_вытяни_шнурки_01__(&message.content);
-    let resolved_content_urls = мяу_разжуй_url_ы_07__(&urls_in_content).await;
-    let attach_urls = message.attachments.iter().map(|a| a.url.clone()).collect::<Vec<_>>();
+    let urls_in_content = extract_urls(&message.content);
+    let resolved_content_urls = resolve_media_urls(&urls_in_content).await;
+    let attach_urls = message
+        .attachments
+        .iter()
+        .map(|a| a.url.clone())
+        .collect::<Vec<_>>();
     if urls_in_content.is_empty() && attach_urls.is_empty() {
         return Ok(false);
     }
@@ -538,21 +693,30 @@ async fn мяу_request_очередь_15__(
         return Ok(false);
     }
 
-    let stored_files = мяу_утащи_request_вложения_10__(ctx, data, message.id, &message.attachments).await;
-    let mut media_items = мяу_собери_вложения_08__(&stored_files);
-    media_items.extend(мяу_собери_галерею_02__(resolved_content_urls.iter().cloned()));
+    let stored_files =
+        download_request_attachments(ctx, data, message.id, &message.attachments).await;
+    let mut media_items = build_attachment_media_items(&stored_files);
+    media_items.extend(build_media_gallery_items(
+        resolved_content_urls.iter().cloned(),
+    ));
     if stored_files.is_empty() {
-        media_items.extend(мяу_собери_галерею_02__(attach_urls.iter().cloned()));
+        media_items.extend(build_media_gallery_items(attach_urls.iter().cloned()));
     }
     media_items.truncate(10);
 
-    let mut info_text = format!("## Media Approval Request
+    let mut info_text = format!(
+        "## Media Approval Request
 **From:** <@{}>
-**Channel:** <#{}>", message.author.id, message.channel_id);
+**Channel:** <#{}>",
+        message.author.id, message.channel_id
+    );
     if !message.content.is_empty() {
-        info_text.push_str(&format!("
+        info_text.push_str(&format!(
+            "
 
-{}", message.content));
+{}",
+            message.content
+        ));
     }
 
     let payload = if media_items.is_empty() {
@@ -560,16 +724,16 @@ async fn мяу_request_очередь_15__(
             "flags": 1 << 15,
             "components": [
                 {
-                    "type": 17,
+                    "type": 17, // CONTAINER
                     "components": [
                         {
-                            "type": 10,
+                            "type": 10, // TEXT_DISPLAY
                             "content": info_text
                         }
                     ]
                 },
                 {
-                    "type": 1,
+                    "type": 1, // ACTION_ROW
                     "components": [
                         { "type": 2, "style": 3, "label": "Approve", "custom_id": format!("media_approve_{}", message.id) },
                         { "type": 2, "style": 4, "label": "Deny", "custom_id": format!("media_deny_{}", message.id) },
@@ -583,20 +747,20 @@ async fn мяу_request_очередь_15__(
             "flags": 1 << 15,
             "components": [
                 {
-                    "type": 17,
+                    "type": 17, // CONTAINER
                     "components": [
                         {
-                            "type": 10,
+                            "type": 10, // TEXT_DISPLAY
                             "content": info_text
                         },
                         {
-                            "type": 12,
+                            "type": 12, // MEDIA_GALLERY
                             "items": media_items
                         }
                     ]
                 },
                 {
-                    "type": 1,
+                    "type": 1, // ACTION_ROW
                     "components": [
                         { "type": 2, "style": 3, "label": "Approve", "custom_id": format!("media_approve_{}", message.id) },
                         { "type": 2, "style": 4, "label": "Deny", "custom_id": format!("media_deny_{}", message.id) },
@@ -607,32 +771,44 @@ async fn мяу_request_очередь_15__(
         })
     };
 
-    let approval_files = мяу_погрузи_вложения_09__(&stored_files).await;
+    let approval_files = load_create_attachments(&stored_files).await;
     let no_stored_files = stored_files.is_empty();
     let forwarded = ctx
         .http
-        .send_message(serenity::ChannelId::new(approval_ch), approval_files, &payload)
+        .send_message(
+            serenity::ChannelId::new(approval_ch),
+            approval_files,
+            &payload,
+        )
         .await?;
 
     data.media_requests.write().await.insert(
         forwarded.id.to_string(),
-        МяуЗапрос {
+        MediaRequest {
             original_channel_id: ch_id,
             original_user_id: message.author.id.to_string(),
             stored_files,
             content_urls: resolved_content_urls,
-            attachment_urls: if no_stored_files { attach_urls } else { Vec::new() },
-            original_text: if message.content.is_empty() { None } else { Some(message.content.clone()) },
+            attachment_urls: if no_stored_files {
+                attach_urls
+            } else {
+                Vec::new()
+            },
+            original_text: if message.content.is_empty() {
+                None
+            } else {
+                Some(message.content.clone())
+            },
         },
     );
-    data.мяу_сохрани_media_requests_34__().await;
+    data.save_media_requests().await;
     let _ = message.delete(ctx).await;
     Ok(true)
 }
 
-async fn мяу_голосовой_кошмар_16__(
+async fn handle_voice_state_event(
     ctx: &serenity::Context,
-    data: &МяуДанные,
+    data: &Data,
     old: &Option<serenity::VoiceState>,
     new: &serenity::VoiceState,
 ) -> Result<(), Error> {
@@ -640,32 +816,42 @@ async fn мяу_голосовой_кошмар_16__(
     let old_channel = old.as_ref().and_then(|v| v.channel_id);
     let new_channel = new.channel_id;
     if old_channel.is_none() && new_channel.is_some() {
-        мяу_пошли_лог_12__(
+        send_log(
             ctx,
             data,
             new.guild_id,
             "🎙️ Voice Joined",
-            format!("**User:** <@{}>\n**Channel:** <#{}>", uid, new_channel.unwrap()),
+            format!(
+                "**User:** <@{}>\n**Channel:** <#{}>",
+                uid,
+                new_channel.unwrap()
+            ),
             Color::new(0x44ff44),
         )
         .await;
     } else if old_channel.is_some() && new_channel.is_none() {
         let action_by = if let Some(gid) = new.guild_id {
-            мяу_найди_аудит_13__(
+            fetch_latest_audit_executor(
                 ctx,
                 gid,
-                serenity::audit_log::Action::Member(serenity::audit_log::MemberAction::MemberDisconnect),
+                serenity::audit_log::Action::Member(
+                    serenity::audit_log::MemberAction::MemberDisconnect,
+                ),
             )
             .await
             .and_then(|(u, target)| {
                 let is_target = target.map(|t| t.to_string() == uid).unwrap_or(false);
-                if is_target { Some(format!("<@{}>", u)) } else { None }
+                if is_target {
+                    Some(format!("<@{}>", u))
+                } else {
+                    None
+                }
             })
             .unwrap_or_else(|| "Self/Unknown".to_string())
         } else {
             "Self/Unknown".to_string()
         };
-        мяу_пошли_лог_12__(
+        send_log(
             ctx,
             data,
             new.guild_id,
@@ -681,7 +867,7 @@ async fn мяу_голосовой_кошмар_16__(
         .await;
     } else if old_channel.is_some() && new_channel.is_some() && old_channel != new_channel {
         let moved_by = if let Some(gid) = new.guild_id {
-            мяу_найди_аудит_13__(
+            fetch_latest_audit_executor(
                 ctx,
                 gid,
                 serenity::audit_log::Action::Member(serenity::audit_log::MemberAction::MemberMove),
@@ -689,13 +875,17 @@ async fn мяу_голосовой_кошмар_16__(
             .await
             .and_then(|(u, target)| {
                 let is_target = target.map(|t| t.to_string() == uid).unwrap_or(false);
-                if is_target { Some(format!("<@{}>", u)) } else { None }
+                if is_target {
+                    Some(format!("<@{}>", u))
+                } else {
+                    None
+                }
             })
             .unwrap_or_else(|| "Self/Unknown".to_string())
         } else {
             "Self/Unknown".to_string()
         };
-        мяу_пошли_лог_12__(
+        send_log(
             ctx,
             data,
             new.guild_id,
@@ -714,9 +904,9 @@ async fn мяу_голосовой_кошмар_16__(
     Ok(())
 }
 
-async fn мяу_липкая_подготовка_17__(
+async fn handle_sticky_setup(
     ctx: &serenity::Context,
-    data: &МяуДанные,
+    data: &Data,
     message: &serenity::Message,
 ) -> Result<bool, Error> {
     let uid = message.author.id.to_string();
@@ -731,7 +921,13 @@ async fn мяу_липкая_подготовка_17__(
     let image_url = message.attachments.first().map(|a| a.url.clone());
 
     if content.is_empty() && image_url.is_none() {
-        message.channel_id.say(ctx, "Пустое сообщение нельзя сделать sticky. Отправь текст и/или картинку.").await?;
+        message
+            .channel_id
+            .say(
+                ctx,
+                "Пустое сообщение нельзя сделать sticky. Отправь текст и/или картинку.",
+            )
+            .await?;
         return Ok(true);
     }
 
@@ -740,8 +936,12 @@ async fn мяу_липкая_подготовка_17__(
         awaiting.remove(&uid);
     }
 
-    let sticky = МяуЛипкость {
-        content: if content.is_empty() { None } else { Some(content.clone()) },
+    let sticky = StickyMessage {
+        content: if content.is_empty() {
+            None
+        } else {
+            Some(content.clone())
+        },
         image_url: image_url.clone(),
         last_message_id: None,
     };
@@ -749,7 +949,7 @@ async fn мяу_липкая_подготовка_17__(
         let mut sm = data.sticky_messages.write().await;
         sm.insert(channel_id.clone(), sticky);
     }
-    data.мяу_сохрани_липкие_32__().await;
+    data.save_sticky_messages().await;
 
     message.channel_id.say(ctx, "✅ **Sticky Message Set!**\nТеперь после каждого нового сообщения sticky будет появляться внизу.").await?;
 
@@ -767,14 +967,14 @@ async fn мяу_липкая_подготовка_17__(
             entry.last_message_id = Some(sent.id.to_string());
         }
     }
-    data.мяу_сохрани_липкие_32__().await;
+    data.save_sticky_messages().await;
 
     Ok(true)
 }
 
-async fn мяу_липкий_репост_18__(
+async fn handle_sticky_repost(
     ctx: &serenity::Context,
-    data: &МяуДанные,
+    data: &Data,
     message: &serenity::Message,
 ) -> Result<(), Error> {
     let channel_id = message.channel_id.to_string();
@@ -785,7 +985,10 @@ async fn мяу_липкий_репост_18__(
 
     if let Some(last_id) = sticky.last_message_id.as_deref() {
         if let Ok(last_id_num) = last_id.parse::<u64>() {
-            let _ = message.channel_id.delete_message(ctx, serenity::MessageId::new(last_id_num)).await;
+            let _ = message
+                .channel_id
+                .delete_message(ctx, serenity::MessageId::new(last_id_num))
+                .await;
         }
     }
 
@@ -806,13 +1009,13 @@ async fn мяу_липкий_репост_18__(
             entry.last_message_id = Some(sent.id.to_string());
         }
     }
-    data.мяу_сохрани_липкие_32__().await;
+    data.save_sticky_messages().await;
     Ok(())
 }
 
-async fn мяу_реакционный_ужас_19__(
+async fn handle_reaction(
     ctx: &serenity::Context,
-    data: &МяуДанные,
+    data: &Data,
     reaction: &serenity::Reaction,
     added: bool,
 ) -> Result<(), Error> {
@@ -825,6 +1028,7 @@ async fn мяу_реакционный_ужас_19__(
                 _ => return Ok(()),
             };
 
+            // Media request moderation queue
             if added {
                 let req = data.media_requests.read().await.get(&msg_id).cloned();
                 if let Some(req) = req {
@@ -853,10 +1057,13 @@ async fn мяу_реакционный_ужас_19__(
                             let _ = ch.say(ctx, content).await;
                         }
                         data.media_requests.write().await.remove(&msg_id);
-                        data.мяу_сохрани_media_requests_34__().await;
-                        let _ = reaction.channel_id.delete_message(ctx, reaction.message_id).await;
+                        data.save_media_requests().await;
+                        let _ = reaction
+                            .channel_id
+                            .delete_message(ctx, reaction.message_id)
+                            .await;
                         return Ok(());
-                    } else if emoji_id == "🚫" {
+                    } else if emoji_id == "1475200940964319414" {
                         if let Ok(ch_num) = req.original_channel_id.parse::<u64>() {
                             let ch = serenity::ChannelId::new(ch_num);
                             if let Ok(member_num) = req.original_user_id.parse::<u64>() {
@@ -869,7 +1076,10 @@ async fn мяу_реакционный_ужас_19__(
                                 let _ = ch.create_permission(ctx, overwrite).await;
                                 let ctx_clone = ctx.clone();
                                 tokio::spawn(async move {
-                                    tokio::time::sleep(tokio::time::Duration::from_secs(24 * 60 * 60)).await;
+                                    tokio::time::sleep(tokio::time::Duration::from_secs(
+                                        24 * 60 * 60,
+                                    ))
+                                    .await;
                                     let _ = ch
                                         .delete_permission(
                                             &ctx_clone,
@@ -880,24 +1090,34 @@ async fn мяу_реакционный_ужас_19__(
                             }
                         }
                         data.media_requests.write().await.remove(&msg_id);
-                        data.мяу_сохрани_media_requests_34__().await;
-                        let _ = reaction.channel_id.delete_message(ctx, reaction.message_id).await;
+                        data.save_media_requests().await;
+                        let _ = reaction
+                            .channel_id
+                            .delete_message(ctx, reaction.message_id)
+                            .await;
                         return Ok(());
-                    } else if emoji_id == "❌" {
+                    } else if emoji_id == "❌"
+                        || emoji_id == "🚫"
+                        || emoji_id == "1474811226143068303"
+                    {
                         data.media_requests.write().await.remove(&msg_id);
-                        data.мяу_сохрани_media_requests_34__().await;
-                        let _ = reaction.channel_id.delete_message(ctx, reaction.message_id).await;
+                        data.save_media_requests().await;
+                        let _ = reaction
+                            .channel_id
+                            .delete_message(ctx, reaction.message_id)
+                            .await;
                         return Ok(());
                     }
                 }
             }
 
-            if added && (emoji_id == "⭐" || emoji_id == "star") {
-                let cfg = data.мяу_конфиг_сервера_38__(Some(guild_id)).await;
-                let Some(starboard_channel_id) = cfg.starboard_channel_id.and_then(|id| id.parse::<u64>().ok()) else {
-                    return Ok(());
-                };
-                let starboard_threshold = cfg.starboard_threshold.unwrap_or(3);
+            // Starboard
+            if added
+                && (emoji_id == "⭐"
+                    || emoji_id == "star"
+                    || emoji_id == "1475196363343003973"
+                    || emoji_id == "1475196011549818970")
+            {
                 let already = data
                     .starboarded
                     .read()
@@ -915,13 +1135,22 @@ async fn мяу_реакционный_ужас_19__(
                                 serenity::ReactionType::Unicode(s) => s.clone(),
                                 _ => String::new(),
                             };
-                            if eid == "⭐" || eid == "star" {
+                            if eid == "⭐"
+                                || eid == "star"
+                                || eid == "1475196363343003973"
+                                || eid == "1475196011549818970"
+                            {
                                 star_count += r.count;
                             }
                         }
-                        if star_count >= starboard_threshold {
+                        let settings = guild_settings(data, guild_id).await;
+                        let Some(starboard_channel_id) = settings.starboard_channel_id else {
+                            return Ok(());
+                        };
+
+                        if star_count >= settings.starboard_threshold {
                             data.starboarded.write().await.insert(msg_id.clone(), true);
-                            data.мяу_сохрани_starboard_33__().await;
+                            data.save_starboard().await;
                             let mut content = format!(
                                 "⭐ **{}** | <#{}>\n\n**{}**: {}",
                                 star_count, msg.channel_id, msg.author.name, msg.content
@@ -945,6 +1174,7 @@ async fn мяу_реакционный_ужас_19__(
                                 )
                                 .await;
 
+                            // Economy reward removed
                         }
                     }
                 }
@@ -952,15 +1182,22 @@ async fn мяу_реакционный_ужас_19__(
 
             let rr = data.reaction_roles.read().await;
             if let Some(config) = rr.get(&msg_id) {
-                if let (Some(role_id_val), Some(emoji_val)) = (config.get("roleId"), config.get("emoji")) {
+                // Config format: { "roleId": "...", "emoji": "..." }
+                if let (Some(role_id_val), Some(emoji_val)) =
+                    (config.get("roleId"), config.get("emoji"))
+                {
                     if emoji_val.as_str() == Some(&emoji_id) {
                         if let Some(role_id_str) = role_id_val.as_str() {
                             if let Ok(role_id) = role_id_str.parse::<u64>() {
                                 if let Ok(member) = guild_id.member(ctx, user_id).await {
                                     if added {
-                                        let _ = member.add_role(ctx, serenity::RoleId::new(role_id)).await;
+                                        let _ = member
+                                            .add_role(ctx, serenity::RoleId::new(role_id))
+                                            .await;
                                     } else {
-                                        let _ = member.remove_role(ctx, serenity::RoleId::new(role_id)).await;
+                                        let _ = member
+                                            .remove_role(ctx, serenity::RoleId::new(role_id))
+                                            .await;
                                     }
                                 }
                             }

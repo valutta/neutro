@@ -1,360 +1,354 @@
-macro_rules! мяу_предмет {
-    ($item:item) => { $item };
-}
-
-use schweiz_miau_proc::{fondue, grueti_mitenand, kaese, мяу as proc_мяу, schoggi};
-мяу_предмет! { use crate::{Context, Error, state::{МяуДанные, МяуЧерновикФлага}}; }
+use crate::{Context, Data, Error, state::TerminalFlagDraft};
 use poise::serenity_prelude as serenity;
 use serde_json::json;
 
-macro_rules! мяу {
-    ($lang:expr, $key:expr) => {
-        мяяяяяу_20__($lang, $key)
-    };
-}
-
-macro_rules! меееов {
-    ($who:ident <- $what:expr) => {
-        let $who = $what;
-    };
-    (mut $who:ident <- $what:expr) => {
-        let mut $who = $what;
-    };
-    ($who:ident : $kind:ty = $what:expr) => {
-        let $who: $kind = $what;
-    };
-    (mut $who:ident : $kind:ty = $what:expr) => {
-        let mut $who: $kind = $what;
-    };
-}
-
-macro_rules! мяу_если {
-    ($cond:expr => $then:block) => {
-        if $cond $then
-    };
-    ($cond:expr => $then:block иначе $else:block) => {
-        if $cond $then else $else
-    };
-}
-
-macro_rules! мяу_если_пусть {
-    (Some(mut $who:ident) = $what:expr => $then:block иначе $else:block) => {
-        if let Some(mut $who) = $what $then else $else
-    };
-    (Some($who:ident) = $what:expr => $then:block иначе $else:block) => {
-        if let Some($who) = $what $then else $else
-    };
-    (Ok($who:ident) = $what:expr => $then:block иначе $else:block) => {
-        if let Ok($who) = $what $then else $else
-    };
-    (Err($who:ident) = $what:expr => $then:block иначе $else:block) => {
-        if let Err($who) = $what $then else $else
-    };
-}
-
-#[poise::command(slash_command, prefix_command, rename = "terminal", subcommands("мяяяяяу_02__", "мяяяяяу_03__", "мяяяяяу_04__", "мяяяяяу_05__", "мяяяяяу_06__", "мяяяяяу_07__", "мяяяяяу_08__", "мяяяяяу_09__", "мяяяяяу_10__", "мяяяяяу_11__", "мяяяяяу_12__", "мяяяяяу_13__", "мяяяяяу_14__", "мяяяяяу_15__", "мяяяяяу_16__"))]
-#[proc_мяу]
-#[grueti_mitenand]
-pub async fn мяяяяяу_00__(
-    ctx: Context<'_>,
-) -> Result<(), Error> {
-    меееов!(мяу_язычок <- мяяяяяу_18__(&ctx).await);
-    crate::v2_components::мяу_v2_посылка_90__(ctx, fondue!(мяяяяяу_23__(&мяу_язычок, "help"))).await?;
+/// Terminal command base
+#[poise::command(
+    slash_command,
+    prefix_command,
+    subcommands(
+        "wl", "ap", "fetch", "echo", "touch", "mkdir", "rm", "mv", "role", "vm", "flag",
+        "massrole", "rrole", "rtr", "help"
+    )
+)]
+pub async fn terminal(ctx: Context<'_>) -> Result<(), Error> {
+    let lang = terminal_lang_ctx(&ctx).await;
+    crate::v2_components::send_v2(ctx, terminal_docs_components(&lang, "help")).await?;
     Ok(())
 }
 
-async fn мяяяяяу_01__(ctx: &Context<'_>) -> bool {
-    let Some(guild_id) = ctx.guild_id() else {
-        return false;
-    };
-    if let Some(guild) = ctx.cache().guild(guild_id) {
-        if guild.owner_id == ctx.author().id {
-            return true;
-        }
+async fn is_authorized(ctx: &Context<'_>) -> bool {
+    let author_id = ctx.author().id.to_string();
+    if crate::bot::owner_user_id().as_deref() == Some(author_id.as_str()) {
+        return true;
     }
-    if let Ok(member) = guild_id.member(ctx.http(), ctx.author().id).await {
-        if let Ok(perms) = member.permissions(ctx.cache()) {
-            if perms.administrator() {
-                return true;
-            }
-        }
-        if let Some(role_id) = ctx.data().мяу_роль_стаффа_39__(Some(guild_id)).await {
-            if member.roles.contains(&role_id) {
-                return true;
-            }
-        }
-    }
-    меееов!(мяу_автор <- schoggi!(ctx.author().id.to_string()));
-    меееов!(мяу_список <- kaese!(ctx.data().terminal_whitelist.read().await));
-    мяу_список.contains(&мяу_автор)
+    let whitelist = ctx.data().terminal_whitelist.read().await;
+    whitelist.contains(&author_id)
 }
 
-#[poise::command(slash_command, prefix_command, rename = "wl")]
-pub async fn мяяяяяу_02__(
+/// Whitelist management
+#[poise::command(slash_command, prefix_command)]
+pub async fn wl(
     ctx: Context<'_>,
     #[description = "Action: add, rm, list"] action: String,
     #[description = "Target User ID"] target: Option<String>,
 ) -> Result<(), Error> {
-    меееов!(мяу_язычок <- мяяяяяу_18__(&ctx).await);
-    мяу_если!(!мяяяяяу_01__(&ctx).await => {
-        crate::v2_components::мяу_v2_посылка_90__(ctx, serde_json::json!([{ "type": 17, "components": [{ "type": 10, "content": мяу!(&мяу_язычок, "unauthorized") }] }])).await?;
+    let lang = terminal_lang_ctx(&ctx).await;
+    if !is_authorized(&ctx).await {
+        crate::v2_components::send_v2(ctx, serde_json::json!([{ "type": 17, "components": [{ "type": 10, "content": terminal_text(&lang, "unauthorized") }] }])).await?;
         return Ok(());
-    });
+    }
 
     match action.as_str() {
         "list" => {
-            меееов!(мяу_белый_список <- ctx.data().terminal_whitelist.read().await);
-            меееов!(мяу_простыня <- мяу_если!(мяу_белый_список.is_empty() => {
-                мяу!(&мяу_язычок, "empty").to_string()
-            } иначе {
-                мяу_белый_список.iter().map(|id| format!("<@{}>", id)).collect::<Vec<_>>().join(", ")
-            }));
-            crate::v2_components::мяу_v2_посылка_90__(ctx, serde_json::json!([{ "type": 17, "components": [{ "type": 10, "content": мяу!(&мяу_язычок, "wl_list").replace("{list}", &мяу_простыня) }] }])).await?;
+            let whitelist = ctx.data().terminal_whitelist.read().await;
+            let list = if whitelist.is_empty() {
+                terminal_text(&lang, "empty").to_string()
+            } else {
+                whitelist
+                    .iter()
+                    .map(|id| format!("<@{}>", id))
+                    .collect::<Vec<_>>()
+                    .join(", ")
+            };
+            crate::v2_components::send_v2(ctx, serde_json::json!([{ "type": 17, "components": [{ "type": 10, "content": terminal_text(&lang, "wl_list").replace("{list}", &list) }] }])).await?;
         }
         "add" => {
-            мяу_если_пусть!(Some(mut мяу_id) = target => {
-                мяу_id = мяу_id.chars().filter(|c| c.is_digit(10)).collect();
-                меееов!(мяу_добавилось <- {
-                    меееов!(mut мяу_белый_список <- ctx.data().terminal_whitelist.write().await);
-                    мяу_если!(мяу_белый_список.contains(&мяу_id) => {
+            if let Some(mut id) = target {
+                id = id.chars().filter(|c| c.is_digit(10)).collect();
+                let added = {
+                    let mut whitelist = ctx.data().terminal_whitelist.write().await;
+                    if whitelist.contains(&id) {
                         false
-                    } иначе {
-                        мяу_белый_список.push(мяу_id);
+                    } else {
+                        whitelist.push(id);
                         true
-                    })
-                });
-                мяу_если!(!мяу_добавилось => {
-                    crate::v2_components::мяу_v2_посылка_90__(ctx, serde_json::json!([{ "type": 17, "components": [{ "type": 10, "content": мяу!(&мяу_язычок, "wl_exists") }] }])).await?;
-                } иначе {
-                    ctx.data().мяу_сохрани_whitelist_27__().await;
-                    crate::v2_components::мяу_v2_посылка_90__(ctx, serde_json::json!([{ "type": 17, "components": [{ "type": 10, "content": мяу!(&мяу_язычок, "wl_added") }] }])).await?;
-                });
-            } иначе {
-                crate::v2_components::мяу_v2_посылка_90__(ctx, serde_json::json!([{ "type": 17, "components": [{ "type": 10, "content": мяу!(&мяу_язычок, "wl_usage_add") }] }])).await?;
-            });
+                    }
+                };
+                if !added {
+                    crate::v2_components::send_v2(ctx, serde_json::json!([{ "type": 17, "components": [{ "type": 10, "content": terminal_text(&lang, "wl_exists") }] }])).await?;
+                } else {
+                    ctx.data().save_whitelist().await;
+                    crate::v2_components::send_v2(ctx, serde_json::json!([{ "type": 17, "components": [{ "type": 10, "content": terminal_text(&lang, "wl_added") }] }])).await?;
+                }
+            } else {
+                crate::v2_components::send_v2(ctx, serde_json::json!([{ "type": 17, "components": [{ "type": 10, "content": terminal_text(&lang, "wl_usage_add") }] }])).await?;
+            }
         }
         "rm" => {
-            мяу_если_пусть!(Some(mut мяу_id) = target => {
-                мяу_id = мяу_id.chars().filter(|c| c.is_digit(10)).collect();
-                меееов!(мяу_снеслось <- {
-                    меееов!(mut мяу_белый_список <- ctx.data().terminal_whitelist.write().await);
-                    мяу_если!(мяу_белый_список.contains(&мяу_id) => {
-                        мяу_белый_список.retain(|x| x != &мяу_id);
+            if let Some(mut id) = target {
+                id = id.chars().filter(|c| c.is_digit(10)).collect();
+                let removed = {
+                    let mut whitelist = ctx.data().terminal_whitelist.write().await;
+                    if whitelist.contains(&id) {
+                        whitelist.retain(|x| x != &id);
                         true
-                    } иначе {
+                    } else {
                         false
-                    })
-                });
-                мяу_если!(мяу_снеслось => {
-                    ctx.data().мяу_сохрани_whitelist_27__().await;
-                    crate::v2_components::мяу_v2_посылка_90__(ctx, serde_json::json!([{ "type": 17, "components": [{ "type": 10, "content": мяу!(&мяу_язычок, "wl_removed") }] }])).await?;
-                } иначе {
-                    crate::v2_components::мяу_v2_посылка_90__(ctx, serde_json::json!([{ "type": 17, "components": [{ "type": 10, "content": мяу!(&мяу_язычок, "wl_missing") }] }])).await?;
-                });
-            } иначе {
-                crate::v2_components::мяу_v2_посылка_90__(ctx, serde_json::json!([{ "type": 17, "components": [{ "type": 10, "content": мяу!(&мяу_язычок, "wl_usage_rm") }] }])).await?;
-            });
+                    }
+                };
+                if removed {
+                    ctx.data().save_whitelist().await;
+                    crate::v2_components::send_v2(ctx, serde_json::json!([{ "type": 17, "components": [{ "type": 10, "content": terminal_text(&lang, "wl_removed") }] }])).await?;
+                } else {
+                    crate::v2_components::send_v2(ctx, serde_json::json!([{ "type": 17, "components": [{ "type": 10, "content": terminal_text(&lang, "wl_missing") }] }])).await?;
+                }
+            } else {
+                crate::v2_components::send_v2(ctx, serde_json::json!([{ "type": 17, "components": [{ "type": 10, "content": terminal_text(&lang, "wl_usage_rm") }] }])).await?;
+            }
         }
         _ => {
-            crate::v2_components::мяу_v2_посылка_90__(ctx, serde_json::json!([{ "type": 17, "components": [{ "type": 10, "content": мяу!(&мяу_язычок, "wl_usage") }] }])).await?;
+            crate::v2_components::send_v2(ctx, serde_json::json!([{ "type": 17, "components": [{ "type": 10, "content": terminal_text(&lang, "wl_usage") }] }])).await?;
         }
     }
 
     Ok(())
 }
 
-
-#[poise::command(slash_command, prefix_command, rename = "ap")]
-pub async fn мяяяяяу_03__(
+/// Approval Channels mapping
+#[poise::command(slash_command, prefix_command)]
+pub async fn ap(
     ctx: Context<'_>,
     #[description = "Request Channel ID"] request_id: String,
     #[description = "Approval Channel ID"] approval_id: String,
 ) -> Result<(), Error> {
-    меееов!(мяу_язычок <- мяяяяяу_18__(&ctx).await);
-    мяу_если!(!мяяяяяу_01__(&ctx).await => {
-        crate::v2_components::мяу_v2_посылка_90__(ctx, serde_json::json!([{ "type": 17, "components": [{ "type": 10, "content": мяу!(&мяу_язычок, "unauthorized") }] }])).await?;
+    let lang = terminal_lang_ctx(&ctx).await;
+    if !is_authorized(&ctx).await {
+        crate::v2_components::send_v2(ctx, serde_json::json!([{ "type": 17, "components": [{ "type": 10, "content": terminal_text(&lang, "unauthorized") }] }])).await?;
         return Ok(());
-    });
+    }
 
-    меееов!(мяу_req: String = request_id.chars().filter(|c| c.is_digit(10)).collect());
-    меееов!(мяу_ap: String = approval_id.chars().filter(|c| c.is_digit(10)).collect());
+    let req_clean: String = request_id.chars().filter(|c| c.is_digit(10)).collect();
+    let app_clean: String = approval_id.chars().filter(|c| c.is_digit(10)).collect();
 
-    мяу_если!(мяу_req.is_empty() || мяу_ap.is_empty() => {
-        crate::v2_components::мяу_v2_посылка_90__(ctx, serde_json::json!([{ "type": 17, "components": [{ "type": 10, "content": мяу!(&мяу_язычок, "invalid_channel_ids") }] }])).await?;
+    if req_clean.is_empty() || app_clean.is_empty() {
+        crate::v2_components::send_v2(ctx, serde_json::json!([{ "type": 17, "components": [{ "type": 10, "content": terminal_text(&lang, "invalid_channel_ids") }] }])).await?;
         return Ok(());
-    });
+    }
 
     {
-        меееов!(mut мяу_каналы <- ctx.data().approval_channels.write().await);
-        мяу_каналы.insert(мяу_req, мяу_ap);
+        let mut channels = ctx.data().approval_channels.write().await;
+        channels.insert(req_clean, app_clean);
     }
-    ctx.data().мяу_сохрани_approval_28__().await;
+    ctx.data().save_approval_channels().await;
 
-    crate::v2_components::мяу_v2_посылка_90__(ctx, serde_json::json!([{ "type": 17, "components": [{ "type": 10, "content": мяу!(&мяу_язычок, "approval_mapped") }] }])).await?;
+    crate::v2_components::send_v2(ctx, serde_json::json!([{ "type": 17, "components": [{ "type": 10, "content": terminal_text(&lang, "approval_mapped") }] }])).await?;
     Ok(())
 }
 
-#[poise::command(slash_command, prefix_command, rename = "fetch")]
-pub async fn мяяяяяу_04__(ctx: Context<'_>) -> Result<(), Error> {
-    меееов!(мяу_язычок <- мяяяяяу_18__(&ctx).await);
-    мяу_если!(!мяяяяяу_01__(&ctx).await => { return Ok(()); });
-    меееов!(мяу_путь <- std::path::PathBuf::from("../assets/noorfetch.txt"));
-    мяу_если_пусть!(Ok(мяу_текст) = std::fs::read_to_string(мяу_путь) => {
-        crate::v2_components::мяу_v2_посылка_90__(ctx, serde_json::json!([{ "type": 17, "components": [{ "type": 10, "content": format!("```\n{}\n```", мяу_текст) }] }])).await?;
-    } иначе {
-        crate::v2_components::мяу_v2_посылка_90__(ctx, serde_json::json!([{ "type": 17, "components": [{ "type": 10, "content": мяу!(&мяу_язычок, "fetch_missing") }] }])).await?;
-    });
+/// Fetch system info
+#[poise::command(slash_command, prefix_command)]
+pub async fn fetch(ctx: Context<'_>) -> Result<(), Error> {
+    let lang = terminal_lang_ctx(&ctx).await;
+    if !is_authorized(&ctx).await {
+        return Ok(());
+    }
+    let path = std::path::PathBuf::from("../assets/noorfetch.txt");
+    if let Ok(text) = std::fs::read_to_string(path) {
+        crate::v2_components::send_v2(ctx, serde_json::json!([{ "type": 17, "components": [{ "type": 10, "content": format!("```\n{}\n```", text) }] }])).await?;
+    } else {
+        crate::v2_components::send_v2(ctx, serde_json::json!([{ "type": 17, "components": [{ "type": 10, "content": terminal_text(&lang, "fetch_missing") }] }])).await?;
+    }
     Ok(())
 }
 
-#[poise::command(slash_command, prefix_command, rename = "echo")]
-pub async fn мяяяяяу_05__(
+/// Echo / Set Topic
+#[poise::command(slash_command, prefix_command)]
+pub async fn echo(
     ctx: Context<'_>,
     #[description = "Channel"] mut channel: poise::serenity_prelude::GuildChannel,
     #[description = "Description"] description: String,
 ) -> Result<(), Error> {
-    let lang = мяяяяяу_18__(&ctx).await;
-    if !мяяяяяу_01__(&ctx).await { return Ok(()); }
-    if let Err(e) = channel.edit(ctx.http(), poise::serenity_prelude::EditChannel::new().topic(description)).await {
-        crate::v2_components::мяу_v2_посылка_90__(ctx, serde_json::json!([{ "type": 17, "components": [{ "type": 10, "content": мяу!(&lang, "echo_error").replace("{err}", &e.to_string()) }] }])).await?;
+    let lang = terminal_lang_ctx(&ctx).await;
+    if !is_authorized(&ctx).await {
+        return Ok(());
+    }
+    if let Err(e) = channel
+        .edit(
+            ctx.http(),
+            poise::serenity_prelude::EditChannel::new().topic(description),
+        )
+        .await
+    {
+        crate::v2_components::send_v2(ctx, serde_json::json!([{ "type": 17, "components": [{ "type": 10, "content": terminal_text(&lang, "echo_error").replace("{err}", &e.to_string()) }] }])).await?;
     } else {
-        crate::v2_components::мяу_v2_посылка_90__(ctx, serde_json::json!([{ "type": 17, "components": [{ "type": 10, "content": мяу!(&lang, "echo_ok") }] }])).await?;
+        crate::v2_components::send_v2(ctx, serde_json::json!([{ "type": 17, "components": [{ "type": 10, "content": terminal_text(&lang, "echo_ok") }] }])).await?;
     }
     Ok(())
 }
 
-#[poise::command(slash_command, prefix_command, rename = "touch")]
-pub async fn мяяяяяу_06__(
+/// Touch / Create Channel
+#[poise::command(slash_command, prefix_command)]
+pub async fn touch(
     ctx: Context<'_>,
     #[description = "Channel name"] name: String,
     #[description = "Category ID"] category: Option<poise::serenity_prelude::ChannelId>,
 ) -> Result<(), Error> {
-    let lang = мяяяяяу_18__(&ctx).await;
-    if !мяяяяяу_01__(&ctx).await { return Ok(()); }
+    let lang = terminal_lang_ctx(&ctx).await;
+    if !is_authorized(&ctx).await {
+        return Ok(());
+    }
     let guild = ctx.guild_id().ok_or("No guild")?;
-    let mut builder = poise::serenity_prelude::CreateChannel::new(name).kind(poise::serenity_prelude::ChannelType::Text);
+    let mut builder = poise::serenity_prelude::CreateChannel::new(name)
+        .kind(poise::serenity_prelude::ChannelType::Text);
     if let Some(cat) = category {
         builder = builder.category(cat);
     }
     guild.create_channel(ctx.http(), builder).await?;
-    crate::v2_components::мяу_v2_посылка_90__(ctx, serde_json::json!([{ "type": 17, "components": [{ "type": 10, "content": мяу!(&lang, "channel_created") }] }])).await?;
+    crate::v2_components::send_v2(ctx, serde_json::json!([{ "type": 17, "components": [{ "type": 10, "content": terminal_text(&lang, "channel_created") }] }])).await?;
     Ok(())
 }
 
-#[poise::command(slash_command, prefix_command, rename = "mkdir")]
-pub async fn мяяяяяу_07__(
+/// Mkdir / Create Category
+#[poise::command(slash_command, prefix_command)]
+pub async fn mkdir(
     ctx: Context<'_>,
     #[description = "Category name"] name: String,
 ) -> Result<(), Error> {
-    let lang = мяяяяяу_18__(&ctx).await;
-    if !мяяяяяу_01__(&ctx).await { return Ok(()); }
+    let lang = terminal_lang_ctx(&ctx).await;
+    if !is_authorized(&ctx).await {
+        return Ok(());
+    }
     let guild = ctx.guild_id().ok_or("No guild")?;
-    let builder = poise::serenity_prelude::CreateChannel::new(name).kind(poise::serenity_prelude::ChannelType::Category);
+    let builder = poise::serenity_prelude::CreateChannel::new(name)
+        .kind(poise::serenity_prelude::ChannelType::Category);
     guild.create_channel(ctx.http(), builder).await?;
-    crate::v2_components::мяу_v2_посылка_90__(ctx, serde_json::json!([{ "type": 17, "components": [{ "type": 10, "content": мяу!(&lang, "category_created") }] }])).await?;
+    crate::v2_components::send_v2(ctx, serde_json::json!([{ "type": 17, "components": [{ "type": 10, "content": terminal_text(&lang, "category_created") }] }])).await?;
     Ok(())
 }
 
-#[poise::command(slash_command, prefix_command, rename = "rm")]
-pub async fn мяяяяяу_08__(
+/// Rm / Delete Channel or Category
+#[poise::command(slash_command, prefix_command)]
+pub async fn rm(
     ctx: Context<'_>,
     #[description = "Flag"] flag: String,
     #[description = "ID"] id: String,
 ) -> Result<(), Error> {
-    let lang = мяяяяяу_18__(&ctx).await;
-    if !мяяяяяу_01__(&ctx).await { return Ok(()); }
-    let id_num: u64 = id.chars().filter(|c| c.is_ascii_digit()).collect::<String>().parse().unwrap_or(0);
+    let lang = terminal_lang_ctx(&ctx).await;
+    if !is_authorized(&ctx).await {
+        return Ok(());
+    }
+    let id_num: u64 = id
+        .chars()
+        .filter(|c| c.is_ascii_digit())
+        .collect::<String>()
+        .parse()
+        .unwrap_or(0);
     if id_num == 0 {
-        crate::v2_components::мяу_v2_посылка_90__(ctx, serde_json::json!([{ "type": 17, "components": [{ "type": 10, "content": мяу!(&lang, "invalid_id") }] }])).await?;
+        crate::v2_components::send_v2(ctx, serde_json::json!([{ "type": 17, "components": [{ "type": 10, "content": terminal_text(&lang, "invalid_id") }] }])).await?;
         return Ok(());
     }
 
     if flag == "-m" {
         let msg_id = poise::serenity_prelude::MessageId::new(id_num);
         if let Err(_) = ctx.channel_id().delete_message(ctx.http(), msg_id).await {
-            crate::v2_components::мяу_v2_посылка_90__(ctx, serde_json::json!([{ "type": 17, "components": [{ "type": 10, "content": мяу!(&lang, "delete_message_error") }] }])).await?;
+            crate::v2_components::send_v2(ctx, serde_json::json!([{ "type": 17, "components": [{ "type": 10, "content": terminal_text(&lang, "delete_message_error") }] }])).await?;
         } else {
-            crate::v2_components::мяу_v2_посылка_90__(ctx, serde_json::json!([{ "type": 17, "components": [{ "type": 10, "content": мяу!(&lang, "deleted") }] }])).await?;
+            crate::v2_components::send_v2(ctx, serde_json::json!([{ "type": 17, "components": [{ "type": 10, "content": terminal_text(&lang, "deleted") }] }])).await?;
         }
     } else if flag == "-c" || flag == "-ch" {
         let channel_id = poise::serenity_prelude::ChannelId::new(id_num);
         if let Err(_) = channel_id.delete(ctx.http()).await {
-            crate::v2_components::мяу_v2_посылка_90__(ctx, serde_json::json!([{ "type": 17, "components": [{ "type": 10, "content": мяу!(&lang, "delete_channel_error") }] }])).await?;
+            crate::v2_components::send_v2(ctx, serde_json::json!([{ "type": 17, "components": [{ "type": 10, "content": terminal_text(&lang, "delete_channel_error") }] }])).await?;
         } else {
-            crate::v2_components::мяу_v2_посылка_90__(ctx, serde_json::json!([{ "type": 17, "components": [{ "type": 10, "content": мяу!(&lang, "deleted") }] }])).await?;
+            crate::v2_components::send_v2(ctx, serde_json::json!([{ "type": 17, "components": [{ "type": 10, "content": terminal_text(&lang, "deleted") }] }])).await?;
         }
     } else {
-        crate::v2_components::мяу_v2_посылка_90__(ctx, serde_json::json!([{ "type": 17, "components": [{ "type": 10, "content": мяу!(&lang, "rm_usage") }] }])).await?;
+        crate::v2_components::send_v2(ctx, serde_json::json!([{ "type": 17, "components": [{ "type": 10, "content": terminal_text(&lang, "rm_usage") }] }])).await?;
     }
     Ok(())
 }
 
-#[poise::command(slash_command, prefix_command, rename = "mv")]
-pub async fn мяяяяяу_09__(
+/// Mv / Move channel to category
+#[poise::command(slash_command, prefix_command)]
+pub async fn mv(
     ctx: Context<'_>,
     #[description = "Channel"] mut channel: poise::serenity_prelude::GuildChannel,
     #[description = "Category"] category: poise::serenity_prelude::ChannelId,
 ) -> Result<(), Error> {
-    let lang = мяяяяяу_18__(&ctx).await;
-    if !мяяяяяу_01__(&ctx).await { return Ok(()); }
-    if let Err(_) = channel.edit(ctx.http(), poise::serenity_prelude::EditChannel::new().category(category)).await {
-        crate::v2_components::мяу_v2_посылка_90__(ctx, serde_json::json!([{ "type": 17, "components": [{ "type": 10, "content": мяу!(&lang, "move_channel_error") }] }])).await?;
+    let lang = terminal_lang_ctx(&ctx).await;
+    if !is_authorized(&ctx).await {
+        return Ok(());
+    }
+    if let Err(_) = channel
+        .edit(
+            ctx.http(),
+            poise::serenity_prelude::EditChannel::new().category(category),
+        )
+        .await
+    {
+        crate::v2_components::send_v2(ctx, serde_json::json!([{ "type": 17, "components": [{ "type": 10, "content": terminal_text(&lang, "move_channel_error") }] }])).await?;
     } else {
-        crate::v2_components::мяу_v2_посылка_90__(ctx, serde_json::json!([{ "type": 17, "components": [{ "type": 10, "content": мяу!(&lang, "move_channel_ok") }] }])).await?;
+        crate::v2_components::send_v2(ctx, serde_json::json!([{ "type": 17, "components": [{ "type": 10, "content": terminal_text(&lang, "move_channel_ok") }] }])).await?;
     }
     Ok(())
 }
 
-#[poise::command(slash_command, prefix_command, rename = "role")]
-pub async fn мяяяяяу_10__(
+/// Role / Assign role via terminal
+#[poise::command(slash_command, prefix_command)]
+pub async fn role(
     ctx: Context<'_>,
     #[description = "Role"] role: poise::serenity_prelude::RoleId,
     #[description = "User"] user: poise::serenity_prelude::Member,
 ) -> Result<(), Error> {
-    let lang = мяяяяяу_18__(&ctx).await;
-    if !мяяяяяу_01__(&ctx).await { return Ok(()); }
+    let lang = terminal_lang_ctx(&ctx).await;
+    if !is_authorized(&ctx).await {
+        return Ok(());
+    }
     if let Err(_) = user.add_role(ctx.http(), role).await {
-        crate::v2_components::мяу_v2_посылка_90__(ctx, serde_json::json!([{ "type": 17, "components": [{ "type": 10, "content": мяу!(&lang, "assign_role_error") }] }])).await?;
+        crate::v2_components::send_v2(ctx, serde_json::json!([{ "type": 17, "components": [{ "type": 10, "content": terminal_text(&lang, "assign_role_error") }] }])).await?;
     } else {
-        crate::v2_components::мяу_v2_посылка_90__(ctx, serde_json::json!([{ "type": 17, "components": [{ "type": 10, "content": мяу!(&lang, "assign_role_ok") }] }])).await?;
+        crate::v2_components::send_v2(ctx, serde_json::json!([{ "type": 17, "components": [{ "type": 10, "content": terminal_text(&lang, "assign_role_ok") }] }])).await?;
     }
     Ok(())
 }
 
-#[poise::command(slash_command, prefix_command, rename = "vm")]
-pub async fn мяяяяяу_11__(
+/// Vm / Move user to voice channel
+#[poise::command(slash_command, prefix_command)]
+pub async fn vm(
     ctx: Context<'_>,
     #[description = "User"] user: poise::serenity_prelude::Member,
     #[description = "Voice Channel ID"] channel: poise::serenity_prelude::ChannelId,
 ) -> Result<(), Error> {
-    let lang = мяяяяяу_18__(&ctx).await;
-    if !мяяяяяу_01__(&ctx).await { return Ok(()); }
+    let lang = terminal_lang_ctx(&ctx).await;
+    if !is_authorized(&ctx).await {
+        return Ok(());
+    }
     let guild_id = ctx.guild_id().ok_or("No guild")?;
-    if let Err(_) = guild_id.move_member(ctx.http(), user.user.id, channel).await {
-        crate::v2_components::мяу_v2_посылка_90__(ctx, serde_json::json!([{ "type": 17, "components": [{ "type": 10, "content": мяу!(&lang, "move_member_error") }] }])).await?;
+    if let Err(_) = guild_id
+        .move_member(ctx.http(), user.user.id, channel)
+        .await
+    {
+        crate::v2_components::send_v2(ctx, serde_json::json!([{ "type": 17, "components": [{ "type": 10, "content": terminal_text(&lang, "move_member_error") }] }])).await?;
     } else {
-        crate::v2_components::мяу_v2_посылка_90__(ctx, serde_json::json!([{ "type": 17, "components": [{ "type": 10, "content": мяу!(&lang, "move_member_ok") }] }])).await?;
+        crate::v2_components::send_v2(ctx, serde_json::json!([{ "type": 17, "components": [{ "type": 10, "content": terminal_text(&lang, "move_member_ok") }] }])).await?;
     }
     Ok(())
 }
 
-#[poise::command(slash_command, prefix_command, rename = "flag")]
-pub async fn мяяяяяу_12__(
+/// Flag / Set channel flag
+#[poise::command(slash_command, prefix_command)]
+pub async fn flag(
     ctx: Context<'_>,
     #[description = "Action: add, rm"] action: String,
     #[description = "Channel ID"] channel_id: String,
     #[description = "Flag name"] flag_name: String,
 ) -> Result<(), Error> {
-    let lang = мяяяяяу_18__(&ctx).await;
-    if !мяяяяяу_01__(&ctx).await { return Ok(()); }
-    let chan = channel_id.chars().filter(|c| c.is_ascii_digit()).collect::<String>();
+    let lang = terminal_lang_ctx(&ctx).await;
+    if !is_authorized(&ctx).await {
+        return Ok(());
+    }
+    let chan = channel_id
+        .chars()
+        .filter(|c| c.is_ascii_digit())
+        .collect::<String>();
     if chan.is_empty() {
-        crate::v2_components::мяу_v2_посылка_90__(ctx, serde_json::json!([{ "type": 17, "components": [{ "type": 10, "content": мяу!(&lang, "invalid_channel_id") }] }])).await?;
+        crate::v2_components::send_v2(ctx, serde_json::json!([{ "type": 17, "components": [{ "type": 10, "content": terminal_text(&lang, "invalid_channel_id") }] }])).await?;
         return Ok(());
     }
     let flag_name = flag_name.trim().to_lowercase();
     if flag_name.is_empty() {
-        crate::v2_components::мяу_v2_посылка_90__(ctx, serde_json::json!([{ "type": 17, "components": [{ "type": 10, "content": мяу!(&lang, "empty_flag") }] }])).await?;
+        crate::v2_components::send_v2(ctx, serde_json::json!([{ "type": 17, "components": [{ "type": 10, "content": terminal_text(&lang, "empty_flag") }] }])).await?;
         return Ok(());
     }
     if action == "add" {
@@ -365,35 +359,39 @@ pub async fn мяяяяяу_12__(
                 list.push(flag_name.clone());
             }
         }
-        ctx.data().мяу_сохрани_flags_29__().await;
-        crate::v2_components::мяу_v2_посылка_90__(ctx, serde_json::json!([{ "type": 17, "components": [{ "type": 10, "content": мяу!(&lang, "flag_added").replace("{flag}", &flag_name).replace("{channel}", &chan) }] }])).await?;
+        ctx.data().save_flags().await;
+        crate::v2_components::send_v2(ctx, serde_json::json!([{ "type": 17, "components": [{ "type": 10, "content": terminal_text(&lang, "flag_added").replace("{flag}", &flag_name).replace("{channel}", &chan) }] }])).await?;
     } else if action == "rm" {
         {
             let mut flags = ctx.data().flags.write().await;
             let list = flags.entry(chan.clone()).or_insert_with(Vec::new);
             list.retain(|f| f != &flag_name);
         }
-        ctx.data().мяу_сохрани_flags_29__().await;
-        crate::v2_components::мяу_v2_посылка_90__(ctx, serde_json::json!([{ "type": 17, "components": [{ "type": 10, "content": мяу!(&lang, "flag_removed").replace("{flag}", &flag_name).replace("{channel}", &chan) }] }])).await?;
+        ctx.data().save_flags().await;
+        crate::v2_components::send_v2(ctx, serde_json::json!([{ "type": 17, "components": [{ "type": 10, "content": terminal_text(&lang, "flag_removed").replace("{flag}", &flag_name).replace("{channel}", &chan) }] }])).await?;
     } else {
-        crate::v2_components::мяу_v2_посылка_90__(ctx, serde_json::json!([{ "type": 17, "components": [{ "type": 10, "content": мяу!(&lang, "invalid_action") }] }])).await?;
+        crate::v2_components::send_v2(ctx, serde_json::json!([{ "type": 17, "components": [{ "type": 10, "content": terminal_text(&lang, "invalid_action") }] }])).await?;
     }
     Ok(())
 }
 
-#[poise::command(slash_command, prefix_command, rename = "massrole")]
-pub async fn мяяяяяу_13__(
+/// Massrole / Give role to all members
+#[poise::command(slash_command, prefix_command)]
+pub async fn massrole(
     ctx: Context<'_>,
     #[description = "Role ID"] role_id: poise::serenity_prelude::RoleId,
 ) -> Result<(), Error> {
-    let lang = мяяяяяу_18__(&ctx).await;
-    if !мяяяяяу_01__(&ctx).await { return Ok(()); }
+    let lang = terminal_lang_ctx(&ctx).await;
+    if !is_authorized(&ctx).await {
+        return Ok(());
+    }
     let guild_id = ctx.guild_id().ok_or("No guild")?;
-    crate::v2_components::мяу_v2_посылка_90__(ctx, serde_json::json!([{ "type": 17, "components": [{ "type": 10, "content": мяу!(&lang, "massrole_start") }] }])).await?;
+    crate::v2_components::send_v2(ctx, serde_json::json!([{ "type": 17, "components": [{ "type": 10, "content": terminal_text(&lang, "massrole_start") }] }])).await?;
 
     let mut success = 0;
     let mut fails = 0;
 
+    // Using the http iteration to handle potentially large guilds
     let mut members = guild_id.members_iter(ctx.http()).boxed();
     use poise::futures_util::StreamExt;
     while let Some(member_res) = members.next().await {
@@ -407,52 +405,62 @@ pub async fn мяяяяяу_13__(
             }
         }
     }
-    crate::v2_components::мяу_v2_посылка_90__(ctx, serde_json::json!([{ "type": 17, "components": [{ "type": 10, "content": мяу!(&lang, "massrole_done").replace("{ok}", &success.to_string()).replace("{fail}", &fails.to_string()) }] }])).await?;
+    crate::v2_components::send_v2(ctx, serde_json::json!([{ "type": 17, "components": [{ "type": 10, "content": terminal_text(&lang, "massrole_done").replace("{ok}", &success.to_string()).replace("{fail}", &fails.to_string()) }] }])).await?;
     Ok(())
 }
 
-#[poise::command(slash_command, prefix_command, rename = "rrole")]
-pub async fn мяяяяяу_14__(
+/// Rrole / Reaction role creation
+#[poise::command(slash_command, prefix_command)]
+pub async fn rrole(
     ctx: Context<'_>,
     #[description = "Role"] role: poise::serenity_prelude::RoleId,
     #[description = "Emoji"] emoji: String,
     #[description = "Channel"] channel: poise::serenity_prelude::ChannelId,
     #[description = "Message content"] content: Option<String>,
 ) -> Result<(), Error> {
-    let lang = мяяяяяу_18__(&ctx).await;
-    if !мяяяяяу_01__(&ctx).await { return Ok(()); }
-    let text = content.unwrap_or_else(|| format!("React with {} to get the role with ID {}!", emoji, role));
+    let lang = terminal_lang_ctx(&ctx).await;
+    if !is_authorized(&ctx).await {
+        return Ok(());
+    }
+    let text = content
+        .unwrap_or_else(|| format!("React with {} to get the role with ID {}!", emoji, role));
 
     let msg = channel.say(ctx.http(), &text).await?;
     let reaction_type = poise::serenity_prelude::ReactionType::Unicode(emoji.clone());
     if let Err(e) = msg.react(ctx.http(), reaction_type).await {
-        crate::v2_components::мяу_v2_посылка_90__(ctx, serde_json::json!([{ "type": 17, "components": [{ "type": 10, "content": мяу!(&lang, "rrole_react_fail").replace("{err}", &e.to_string()) }] }])).await?;
+        crate::v2_components::send_v2(ctx, serde_json::json!([{ "type": 17, "components": [{ "type": 10, "content": terminal_text(&lang, "rrole_react_fail").replace("{err}", &e.to_string()) }] }])).await?;
         return Ok(());
     }
 
     {
         let mut rr = ctx.data().reaction_roles.write().await;
-        rr.insert(msg.id.to_string(), serde_json::json!({
-            "roleId": role.to_string(),
-            "emoji": emoji
-        }));
+        rr.insert(
+            msg.id.to_string(),
+            serde_json::json!({
+                "roleId": role.to_string(),
+                "emoji": emoji
+            }),
+        );
     }
-    ctx.data().мяу_сохрани_rroles_30__().await;
+    ctx.data().save_reaction_roles().await;
 
-    crate::v2_components::мяу_v2_посылка_90__(ctx, serde_json::json!([{ "type": 17, "components": [{ "type": 10, "content": мяу!(&lang, "rrole_spawned").replace("{channel}", &channel.to_string()).replace("{role}", &role.to_string()) }] }])).await?;
+    crate::v2_components::send_v2(ctx, serde_json::json!([{ "type": 17, "components": [{ "type": 10, "content": terminal_text(&lang, "rrole_spawned").replace("{channel}", &channel.to_string()).replace("{role}", &role.to_string()) }] }])).await?;
     Ok(())
 }
 
-#[poise::command(slash_command, prefix_command, rename = "rtr")]
-pub async fn мяяяяяу_15__(
+/// RTR / Mass swap old role for new role
+#[poise::command(slash_command, prefix_command)]
+pub async fn rtr(
     ctx: Context<'_>,
     #[description = "Old Role"] old_role: poise::serenity_prelude::RoleId,
     #[description = "New Role"] new_role: poise::serenity_prelude::RoleId,
 ) -> Result<(), Error> {
-    let lang = мяяяяяу_18__(&ctx).await;
-    if !мяяяяяу_01__(&ctx).await { return Ok(()); }
+    let lang = terminal_lang_ctx(&ctx).await;
+    if !is_authorized(&ctx).await {
+        return Ok(());
+    }
     let guild_id = ctx.guild_id().ok_or("No guild")?;
-    crate::v2_components::мяу_v2_посылка_90__(ctx, serde_json::json!([{ "type": 17, "components": [{ "type": 10, "content": мяу!(&lang, "rtr_start") }] }])).await?;
+    crate::v2_components::send_v2(ctx, serde_json::json!([{ "type": 17, "components": [{ "type": 10, "content": terminal_text(&lang, "rtr_start") }] }])).await?;
 
     let mut success = 0;
     let mut fails = 0;
@@ -475,34 +483,34 @@ pub async fn мяяяяяу_15__(
         }
     }
 
-    crate::v2_components::мяу_v2_посылка_90__(ctx, serde_json::json!([{ "type": 17, "components": [{ "type": 10, "content": мяу!(&lang, "rtr_done").replace("{ok}", &success.to_string()).replace("{fail}", &fails.to_string()) }] }])).await?;
+    crate::v2_components::send_v2(ctx, serde_json::json!([{ "type": 17, "components": [{ "type": 10, "content": terminal_text(&lang, "rtr_done").replace("{ok}", &success.to_string()).replace("{fail}", &fails.to_string()) }] }])).await?;
     Ok(())
 }
 
-
-#[poise::command(slash_command, prefix_command, rename = "help")]
-pub async fn мяяяяяу_16__(
-    ctx: Context<'_>,
-) -> Result<(), Error> {
-    if !мяяяяяу_01__(&ctx).await { return Ok(()); }
-    let lang = мяяяяяу_18__(&ctx).await;
-    crate::v2_components::мяу_v2_посылка_90__(ctx, мяяяяяу_23__(&lang, "help")).await?;
+/// Help command for terminal
+#[poise::command(slash_command, prefix_command)]
+pub async fn help(ctx: Context<'_>) -> Result<(), Error> {
+    if !is_authorized(&ctx).await {
+        return Ok(());
+    }
+    let lang = terminal_lang_ctx(&ctx).await;
+    crate::v2_components::send_v2(ctx, terminal_docs_components(&lang, "help")).await?;
     Ok(())
 }
 
-fn мяяяяяу_17__(raw: &str) -> String {
+fn clean_id(raw: &str) -> String {
     raw.chars().filter(|c| c.is_ascii_digit()).collect()
 }
 
-async fn мяяяяяу_18__(ctx: &Context<'_>) -> String {
-    crate::i18n::мяу_язык_сервера_92__(ctx.data(), ctx.guild_id()).await
+async fn terminal_lang_ctx(ctx: &Context<'_>) -> String {
+    crate::i18n::lang_for_guild(ctx.data(), ctx.guild_id()).await
 }
 
-async fn мяяяяяу_19__(data: &МяуДанные, guild_id: Option<serenity::GuildId>) -> String {
-    crate::i18n::мяу_язык_сервера_92__(data, guild_id).await
+async fn terminal_lang_message(data: &Data, guild_id: Option<serenity::GuildId>) -> String {
+    crate::i18n::lang_for_guild(data, guild_id).await
 }
 
-fn мяяяяяу_20__(lang: &str, key: &str) -> &'static str {
+fn terminal_text(lang: &str, key: &str) -> &'static str {
     match lang {
         "en" => match key {
             "unauthorized" => "[Terminal] Error: Unauthorized. Permission denied.",
@@ -541,7 +549,9 @@ fn мяяяяяу_20__(lang: &str, key: &str) -> &'static str {
             "massrole_start" => "[Terminal] Assigning the role to all members. This may take time.",
             "massrole_done" => "[Terminal] Completed. Assigned: {ok}, Errors: {fail}.",
             "rrole_react_fail" => "[Terminal] Failed to add reaction: {err}",
-            "rrole_spawned" => "[Terminal] Reaction role created in <#{channel}> for role ID {role}",
+            "rrole_spawned" => {
+                "[Terminal] Reaction role created in <#{channel}> for role ID {role}"
+            }
             "rtr_start" => "[Terminal] Role transfer may take some time.",
             "rtr_done" => "[Terminal] Completed. Swapped {ok} members. Errors: {fail}.",
             "docs_overview_label" => "Overview",
@@ -556,21 +566,51 @@ fn мяяяяяу_20__(lang: &str, key: &str) -> &'static str {
             "docs_massrole_label" => "Mass Role",
             "docs_rrole_label" => "Reaction Role",
             "docs_rtr_label" => "Role Transfer",
-            "docs_help" => "Terminal Control Panel\n\nSelect a command from the list below to view its syntax. For `flag`, you can also open an interactive configuration panel.",
-            "docs_flag" => "Terminal Command: flag\n\nPurpose: configure a channel flag.\nSyntax: flag add <channel> <flag>\nSyntax: flag rm <channel> <flag>\nInteractive mode: run `flag` in the terminal channel and use the panel.",
-            "docs_ap" => "Terminal Command: ap\n\nPurpose: map a request channel to an approval channel.\nSyntax: ap <request_channel> <approval_channel>",
-            "docs_wl" => "Terminal Command: wl\n\nPurpose: manage the terminal whitelist.\nSyntax: wl list\nSyntax: wl add <user>\nSyntax: wl rm <user>",
-            "docs_fetch" => "Terminal Command: fetch\n\nPurpose: show the system information banner.\nSyntax: fetch",
-            "docs_echo" => "Terminal Command: echo\n\nPurpose: update a channel topic.\nSyntax: echo <channel> <description>",
-            "docs_touch" => "Terminal Command: touch\n\nPurpose: create a text channel.\nSyntax: touch <name> [category]",
-            "docs_mkdir" => "Terminal Command: mkdir\n\nPurpose: create a category.\nSyntax: mkdir <name>",
-            "docs_rm" => "Terminal Command: rm\n\nPurpose: remove a message, channel, or category.\nSyntax: rm -m <message_id>\nSyntax: rm -ch <channel_id>\nSyntax: rm -c <category_id>",
-            "docs_mv" => "Terminal Command: mv\n\nPurpose: move a channel into a category.\nSyntax: mv <channel> <category>",
-            "docs_role" => "Terminal Command: role\n\nPurpose: assign a role to a member.\nSyntax: role <role> <user>",
-            "docs_vm" => "Terminal Command: vm\n\nPurpose: move a member into a voice channel.\nSyntax: vm <user> <voice_channel>",
-            "docs_massrole" => "Terminal Command: massrole\n\nPurpose: assign a role to every non-bot member.\nSyntax: massrole <role>",
-            "docs_rrole" => "Terminal Command: rrole\n\nPurpose: create a reaction-role message.\nSyntax: rrole <role> <emoji> <channel> [message]",
-            "docs_rtr" => "Terminal Command: rtr\n\nPurpose: replace one role with another across the guild.\nSyntax: rtr <old_role> <new_role>",
+            "docs_help" => {
+                "Terminal Control Panel\n\nSelect a command from the list below to view its syntax. For `flag`, you can also open an interactive configuration panel."
+            }
+            "docs_flag" => {
+                "Terminal Command: flag\n\nPurpose: configure a channel flag.\nSyntax: flag add <channel> <flag>\nSyntax: flag rm <channel> <flag>\nInteractive mode: run `flag` in the terminal channel and use the panel."
+            }
+            "docs_ap" => {
+                "Terminal Command: ap\n\nPurpose: map a request channel to an approval channel.\nSyntax: ap <request_channel> <approval_channel>"
+            }
+            "docs_wl" => {
+                "Terminal Command: wl\n\nPurpose: manage the terminal whitelist.\nSyntax: wl list\nSyntax: wl add <user>\nSyntax: wl rm <user>"
+            }
+            "docs_fetch" => {
+                "Terminal Command: fetch\n\nPurpose: show the system information banner.\nSyntax: fetch"
+            }
+            "docs_echo" => {
+                "Terminal Command: echo\n\nPurpose: update a channel topic.\nSyntax: echo <channel> <description>"
+            }
+            "docs_touch" => {
+                "Terminal Command: touch\n\nPurpose: create a text channel.\nSyntax: touch <name> [category]"
+            }
+            "docs_mkdir" => {
+                "Terminal Command: mkdir\n\nPurpose: create a category.\nSyntax: mkdir <name>"
+            }
+            "docs_rm" => {
+                "Terminal Command: rm\n\nPurpose: remove a message, channel, or category.\nSyntax: rm -m <message_id>\nSyntax: rm -ch <channel_id>\nSyntax: rm -c <category_id>"
+            }
+            "docs_mv" => {
+                "Terminal Command: mv\n\nPurpose: move a channel into a category.\nSyntax: mv <channel> <category>"
+            }
+            "docs_role" => {
+                "Terminal Command: role\n\nPurpose: assign a role to a member.\nSyntax: role <role> <user>"
+            }
+            "docs_vm" => {
+                "Terminal Command: vm\n\nPurpose: move a member into a voice channel.\nSyntax: vm <user> <voice_channel>"
+            }
+            "docs_massrole" => {
+                "Terminal Command: massrole\n\nPurpose: assign a role to every non-bot member.\nSyntax: massrole <role>"
+            }
+            "docs_rrole" => {
+                "Terminal Command: rrole\n\nPurpose: create a reaction-role message.\nSyntax: rrole <role> <emoji> <channel> [message]"
+            }
+            "docs_rtr" => {
+                "Terminal Command: rtr\n\nPurpose: replace one role with another across the guild.\nSyntax: rtr <old_role> <new_role>"
+            }
             "select_command" => "Select a terminal command",
             "open_flag_panel" => "Open Flag Panel",
             "close" => "Close",
@@ -652,7 +692,9 @@ fn мяяяяяу_20__(lang: &str, key: &str) -> &'static str {
             "massrole_start" => "[Terminal] Выдача роли всем участникам. Это может занять время.",
             "massrole_done" => "[Terminal] Готово. Выдано: {ok}, Ошибок: {fail}.",
             "rrole_react_fail" => "[Terminal] Не удалось добавить реакцию: {err}",
-            "rrole_spawned" => "[Terminal] Сообщение reaction role создано в <#{channel}> для роли ID {role}",
+            "rrole_spawned" => {
+                "[Terminal] Сообщение reaction role создано в <#{channel}> для роли ID {role}"
+            }
             "rtr_start" => "[Terminal] Перенос роли может занять некоторое время.",
             "rtr_done" => "[Terminal] Готово. Роль заменена у {ok} участников. Ошибок: {fail}.",
             "docs_overview_label" => "Обзор",
@@ -667,21 +709,51 @@ fn мяяяяяу_20__(lang: &str, key: &str) -> &'static str {
             "docs_massrole_label" => "Массовая роль",
             "docs_rrole_label" => "Reaction Role",
             "docs_rtr_label" => "Перенос роли",
-            "docs_help" => "Панель терминала\n\nВыбери команду из списка ниже, чтобы посмотреть синтаксис. Для `flag` также доступна интерактивная панель настройки.",
-            "docs_flag" => "Команда терминала: flag\n\nНазначение: настраивает флаг канала.\nСинтаксис: flag add <channel> <flag>\nСинтаксис: flag rm <channel> <flag>\nИнтерактивный режим: напиши `flag` в канале терминала и используй панель.",
-            "docs_ap" => "Команда терминала: ap\n\nНазначение: связывает request-канал с каналом подтверждения.\nСинтаксис: ap <request_channel> <approval_channel>",
-            "docs_wl" => "Команда терминала: wl\n\nНазначение: управляет whitelist терминала.\nСинтаксис: wl list\nСинтаксис: wl add <user>\nСинтаксис: wl rm <user>",
-            "docs_fetch" => "Команда терминала: fetch\n\nНазначение: показывает системный баннер.\nСинтаксис: fetch",
-            "docs_echo" => "Команда терминала: echo\n\nНазначение: меняет тему канала.\nСинтаксис: echo <channel> <description>",
-            "docs_touch" => "Команда терминала: touch\n\nНазначение: создает текстовый канал.\nСинтаксис: touch <name> [category]",
-            "docs_mkdir" => "Команда терминала: mkdir\n\nНазначение: создает категорию.\nСинтаксис: mkdir <name>",
-            "docs_rm" => "Команда терминала: rm\n\nНазначение: удаляет сообщение, канал или категорию.\nСинтаксис: rm -m <message_id>\nСинтаксис: rm -ch <channel_id>\nСинтаксис: rm -c <category_id>",
-            "docs_mv" => "Команда терминала: mv\n\nНазначение: перемещает канал в категорию.\nСинтаксис: mv <channel> <category>",
-            "docs_role" => "Команда терминала: role\n\nНазначение: выдает роль участнику.\nСинтаксис: role <role> <user>",
-            "docs_vm" => "Команда терминала: vm\n\nНазначение: перемещает участника в голосовой канал.\nСинтаксис: vm <user> <voice_channel>",
-            "docs_massrole" => "Команда терминала: massrole\n\nНазначение: выдает роль всем участникам без ботов.\nСинтаксис: massrole <role>",
-            "docs_rrole" => "Команда терминала: rrole\n\nНазначение: создает сообщение reaction-role.\nСинтаксис: rrole <role> <emoji> <channel> [message]",
-            "docs_rtr" => "Команда терминала: rtr\n\nНазначение: заменяет одну роль на другую по всему серверу.\nСинтаксис: rtr <old_role> <new_role>",
+            "docs_help" => {
+                "Панель терминала\n\nВыбери команду из списка ниже, чтобы посмотреть синтаксис. Для `flag` также доступна интерактивная панель настройки."
+            }
+            "docs_flag" => {
+                "Команда терминала: flag\n\nНазначение: настраивает флаг канала.\nСинтаксис: flag add <channel> <flag>\nСинтаксис: flag rm <channel> <flag>\nИнтерактивный режим: напиши `flag` в канале терминала и используй панель."
+            }
+            "docs_ap" => {
+                "Команда терминала: ap\n\nНазначение: связывает request-канал с каналом подтверждения.\nСинтаксис: ap <request_channel> <approval_channel>"
+            }
+            "docs_wl" => {
+                "Команда терминала: wl\n\nНазначение: управляет whitelist терминала.\nСинтаксис: wl list\nСинтаксис: wl add <user>\nСинтаксис: wl rm <user>"
+            }
+            "docs_fetch" => {
+                "Команда терминала: fetch\n\nНазначение: показывает системный баннер.\nСинтаксис: fetch"
+            }
+            "docs_echo" => {
+                "Команда терминала: echo\n\nНазначение: меняет тему канала.\nСинтаксис: echo <channel> <description>"
+            }
+            "docs_touch" => {
+                "Команда терминала: touch\n\nНазначение: создает текстовый канал.\nСинтаксис: touch <name> [category]"
+            }
+            "docs_mkdir" => {
+                "Команда терминала: mkdir\n\nНазначение: создает категорию.\nСинтаксис: mkdir <name>"
+            }
+            "docs_rm" => {
+                "Команда терминала: rm\n\nНазначение: удаляет сообщение, канал или категорию.\nСинтаксис: rm -m <message_id>\nСинтаксис: rm -ch <channel_id>\nСинтаксис: rm -c <category_id>"
+            }
+            "docs_mv" => {
+                "Команда терминала: mv\n\nНазначение: перемещает канал в категорию.\nСинтаксис: mv <channel> <category>"
+            }
+            "docs_role" => {
+                "Команда терминала: role\n\nНазначение: выдает роль участнику.\nСинтаксис: role <role> <user>"
+            }
+            "docs_vm" => {
+                "Команда терминала: vm\n\nНазначение: перемещает участника в голосовой канал.\nСинтаксис: vm <user> <voice_channel>"
+            }
+            "docs_massrole" => {
+                "Команда терминала: massrole\n\nНазначение: выдает роль всем участникам без ботов.\nСинтаксис: massrole <role>"
+            }
+            "docs_rrole" => {
+                "Команда терминала: rrole\n\nНазначение: создает сообщение reaction-role.\nСинтаксис: rrole <role> <emoji> <channel> [message]"
+            }
+            "docs_rtr" => {
+                "Команда терминала: rtr\n\nНазначение: заменяет одну роль на другую по всему серверу.\nСинтаксис: rtr <old_role> <new_role>"
+            }
             "select_command" => "Выбери команду терминала",
             "open_flag_panel" => "Открыть панель flag",
             "close" => "Закрыть",
@@ -705,17 +777,23 @@ fn мяяяяяу_20__(lang: &str, key: &str) -> &'static str {
             "flag_apply_added" => "Флаг '{flag}' добавлен каналу <#{channel}>.",
             "flag_apply_removed" => "Флаг '{flag}' удален у канала <#{channel}>.",
             "unknown_command" => "[Terminal] Неизвестная команда. Используй: help",
-            "usage_ap_msg" => "[Terminal] Использование: ap <request_channel_id> <approval_channel_id>",
+            "usage_ap_msg" => {
+                "[Terminal] Использование: ap <request_channel_id> <approval_channel_id>"
+            }
             "usage_wl_add_msg" => "[Terminal] Использование: wl add <@user_or_id>",
             "usage_wl_rm_msg" => "[Terminal] Использование: wl rm <@user_or_id>",
             "usage_wl_msg" => "[Terminal] Использование: wl <add|rm|list> [@user_or_id]",
-            "usage_echo_msg" => "[Terminal] Использование: echo <channel_id_or_mention> <description>",
+            "usage_echo_msg" => {
+                "[Terminal] Использование: echo <channel_id_or_mention> <description>"
+            }
             "channel_not_found" => "[Terminal] Ошибка: канал не найден.",
             "usage_touch_msg" => "[Terminal] Использование: touch <channel_name> [category_id]",
             "usage_mkdir_msg" => "[Terminal] Использование: mkdir <category_name>",
             "usage_mv_msg" => "[Terminal] Использование: mv <channel> <category>",
             "invalid_ids" => "[Terminal] Ошибка: неверные ID",
-            "usage_role_msg" => "[Terminal] Использование: role <role_id_or_mention> <user_id_or_mention>",
+            "usage_role_msg" => {
+                "[Terminal] Использование: role <role_id_or_mention> <user_id_or_mention>"
+            }
             "usage_vm_msg" => "[Terminal] Использование: vm <user_id> <voice_channel_id>",
             "usage_flag_msg" => "[Terminal] Использование: flag add|rm <channel> <flag>",
             "usage_massrole_msg" => "[Terminal] Использование: massrole <role_id_or_mention>",
@@ -729,57 +807,57 @@ fn мяяяяяу_20__(lang: &str, key: &str) -> &'static str {
     }
 }
 
-fn мяяяяяу_21__(lang: &str) -> Vec<serde_json::Value> {
+fn terminal_doc_options(lang: &str) -> Vec<serde_json::Value> {
     [
-        ("help", мяу!(lang, "docs_overview_label")),
+        ("help", terminal_text(lang, "docs_overview_label")),
         ("flag", "Flag"),
-        ("ap", мяу!(lang, "docs_ap_label")),
-        ("wl", мяу!(lang, "docs_wl_label")),
-        ("fetch", мяу!(lang, "docs_fetch_label")),
+        ("ap", terminal_text(lang, "docs_ap_label")),
+        ("wl", terminal_text(lang, "docs_wl_label")),
+        ("fetch", terminal_text(lang, "docs_fetch_label")),
         ("echo", "Echo"),
-        ("touch", мяу!(lang, "docs_touch_label")),
-        ("mkdir", мяу!(lang, "docs_mkdir_label")),
-        ("rm", мяу!(lang, "docs_rm_label")),
-        ("mv", мяу!(lang, "docs_mv_label")),
+        ("touch", terminal_text(lang, "docs_touch_label")),
+        ("mkdir", terminal_text(lang, "docs_mkdir_label")),
+        ("rm", terminal_text(lang, "docs_rm_label")),
+        ("mv", terminal_text(lang, "docs_mv_label")),
         ("role", "Role"),
-        ("vm", мяу!(lang, "docs_vm_label")),
-        ("massrole", мяу!(lang, "docs_massrole_label")),
-        ("rrole", мяу!(lang, "docs_rrole_label")),
-        ("rtr", мяу!(lang, "docs_rtr_label")),
+        ("vm", terminal_text(lang, "docs_vm_label")),
+        ("massrole", terminal_text(lang, "docs_massrole_label")),
+        ("rrole", terminal_text(lang, "docs_rrole_label")),
+        ("rtr", terminal_text(lang, "docs_rtr_label")),
     ]
     .into_iter()
     .map(|(value, label)| json!({ "label": label, "value": value }))
     .collect()
 }
 
-fn мяяяяяу_22__(lang: &str, command: &str) -> String {
+fn terminal_docs_text(lang: &str, command: &str) -> String {
     match command {
-        "flag" => мяу!(lang, "docs_flag").to_string(),
-        "ap" => мяу!(lang, "docs_ap").to_string(),
-        "wl" => мяу!(lang, "docs_wl").to_string(),
-        "fetch" => мяу!(lang, "docs_fetch").to_string(),
-        "echo" => мяу!(lang, "docs_echo").to_string(),
-        "touch" => мяу!(lang, "docs_touch").to_string(),
-        "mkdir" => мяу!(lang, "docs_mkdir").to_string(),
-        "rm" => мяу!(lang, "docs_rm").to_string(),
-        "mv" => мяу!(lang, "docs_mv").to_string(),
-        "role" => мяу!(lang, "docs_role").to_string(),
-        "vm" => мяу!(lang, "docs_vm").to_string(),
-        "massrole" => мяу!(lang, "docs_massrole").to_string(),
-        "rrole" => мяу!(lang, "docs_rrole").to_string(),
-        "rtr" => мяу!(lang, "docs_rtr").to_string(),
-        _ => мяу!(lang, "docs_help").to_string(),
+        "flag" => terminal_text(lang, "docs_flag").to_string(),
+        "ap" => terminal_text(lang, "docs_ap").to_string(),
+        "wl" => terminal_text(lang, "docs_wl").to_string(),
+        "fetch" => terminal_text(lang, "docs_fetch").to_string(),
+        "echo" => terminal_text(lang, "docs_echo").to_string(),
+        "touch" => terminal_text(lang, "docs_touch").to_string(),
+        "mkdir" => terminal_text(lang, "docs_mkdir").to_string(),
+        "rm" => terminal_text(lang, "docs_rm").to_string(),
+        "mv" => terminal_text(lang, "docs_mv").to_string(),
+        "role" => terminal_text(lang, "docs_role").to_string(),
+        "vm" => terminal_text(lang, "docs_vm").to_string(),
+        "massrole" => terminal_text(lang, "docs_massrole").to_string(),
+        "rrole" => terminal_text(lang, "docs_rrole").to_string(),
+        "rtr" => terminal_text(lang, "docs_rtr").to_string(),
+        _ => terminal_text(lang, "docs_help").to_string(),
     }
 }
 
-fn мяяяяяу_23__(lang: &str, selected: &str) -> serde_json::Value {
+fn terminal_docs_components(lang: &str, selected: &str) -> serde_json::Value {
     json!([
         {
             "type": 17,
             "components": [
                 {
                     "type": 10,
-                    "content": мяяяяяу_22__(lang, selected)
+                    "content": terminal_docs_text(lang, selected)
                 }
             ]
         },
@@ -789,8 +867,8 @@ fn мяяяяяу_23__(lang: &str, selected: &str) -> serde_json::Value {
                 {
                     "type": 3,
                     "custom_id": "terminal_docs_select",
-                    "placeholder": мяу!(lang, "select_command"),
-                    "options": мяяяяяу_21__(lang)
+                    "placeholder": terminal_text(lang, "select_command"),
+                    "options": terminal_doc_options(lang)
                 }
             ]
         },
@@ -800,13 +878,13 @@ fn мяяяяяу_23__(lang: &str, selected: &str) -> serde_json::Value {
                 {
                     "type": 2,
                     "style": 2,
-                    "label": мяу!(lang, "open_flag_panel"),
+                    "label": terminal_text(lang, "open_flag_panel"),
                     "custom_id": "terminal_flag_open"
                 },
                 {
                     "type": 2,
                     "style": 2,
-                    "label": мяу!(lang, "close"),
+                    "label": terminal_text(lang, "close"),
                     "custom_id": "terminal_docs_close"
                 }
             ]
@@ -814,32 +892,49 @@ fn мяяяяяу_23__(lang: &str, selected: &str) -> serde_json::Value {
     ])
 }
 
-fn мяяяяяу_24__(lang: &str, draft: &МяуЧерновикФлага, status: Option<&str>) -> String {
+fn terminal_flag_status_text(
+    lang: &str,
+    draft: &TerminalFlagDraft,
+    status: Option<&str>,
+) -> String {
     let channel = draft
         .target_channel_id
         .as_ref()
         .map(|id| format!("<#{}>", id))
-        .unwrap_or_else(|| мяу!(lang, "not_selected").to_string());
-    let action = draft.action.clone().unwrap_or_else(|| мяу!(lang, "not_selected").to_string());
-    let flag = draft.flag.clone().unwrap_or_else(|| мяу!(lang, "not_selected").to_string());
+        .unwrap_or_else(|| terminal_text(lang, "not_selected").to_string());
+    let action = draft
+        .action
+        .clone()
+        .unwrap_or_else(|| terminal_text(lang, "not_selected").to_string());
+    let flag = draft
+        .flag
+        .clone()
+        .unwrap_or_else(|| terminal_text(lang, "not_selected").to_string());
     let mut text = format!(
         "{}\n\n{}: {}\n{}: {}\n{}: {}\n\n{}",
-        мяу!(lang, "flag_title"),
-        мяу!(lang, "flag_channel"), channel,
-        мяу!(lang, "flag_action"), action,
-        мяу!(lang, "flag_name"), flag,
-        мяу!(lang, "flag_available")
+        terminal_text(lang, "flag_title"),
+        terminal_text(lang, "flag_channel"),
+        channel,
+        terminal_text(lang, "flag_action"),
+        action,
+        terminal_text(lang, "flag_name"),
+        flag,
+        terminal_text(lang, "flag_available")
     );
     if let Some(status) = status {
         text.push_str(&format!(
             "\n\n{}",
-            мяу!(lang, "flag_status").replace("{status}", status)
+            terminal_text(lang, "flag_status").replace("{status}", status)
         ));
     }
     text
 }
 
-fn мяяяяяу_25__(lang: &str, draft: &МяуЧерновикФлага, status: Option<&str>) -> serde_json::Value {
+fn terminal_flag_components(
+    lang: &str,
+    draft: &TerminalFlagDraft,
+    status: Option<&str>,
+) -> serde_json::Value {
     let ready = draft.target_channel_id.is_some() && draft.action.is_some() && draft.flag.is_some();
     json!([
         {
@@ -847,7 +942,7 @@ fn мяяяяяу_25__(lang: &str, draft: &МяуЧерновикФлага, sta
             "components": [
                 {
                     "type": 10,
-                    "content": мяяяяяу_24__(lang, draft, status)
+                    "content": terminal_flag_status_text(lang, draft, status)
                 }
             ]
         },
@@ -857,7 +952,7 @@ fn мяяяяяу_25__(lang: &str, draft: &МяуЧерновикФлага, sta
                 {
                     "type": 8,
                     "custom_id": "terminal_flag_channel",
-                    "placeholder": мяу!(lang, "select_target_channel"),
+                    "placeholder": terminal_text(lang, "select_target_channel"),
                     "channel_types": [0]
                 }
             ]
@@ -868,10 +963,10 @@ fn мяяяяяу_25__(lang: &str, draft: &МяуЧерновикФлага, sta
                 {
                     "type": 3,
                     "custom_id": "terminal_flag_action",
-                    "placeholder": мяу!(lang, "select_action"),
+                    "placeholder": terminal_text(lang, "select_action"),
                     "options": [
-                        { "label": мяу!(lang, "add"), "value": "add" },
-                        { "label": мяу!(lang, "remove"), "value": "rm" }
+                        { "label": terminal_text(lang, "add"), "value": "add" },
+                        { "label": terminal_text(lang, "remove"), "value": "rm" }
                     ]
                 }
             ]
@@ -882,7 +977,7 @@ fn мяяяяяу_25__(lang: &str, draft: &МяуЧерновикФлага, sta
                 {
                     "type": 3,
                     "custom_id": "terminal_flag_name",
-                    "placeholder": мяу!(lang, "select_flag"),
+                    "placeholder": terminal_text(lang, "select_flag"),
                     "options": [
                         { "label": "request", "value": "request" }
                     ]
@@ -895,14 +990,14 @@ fn мяяяяяу_25__(lang: &str, draft: &МяуЧерновикФлага, sta
                 {
                     "type": 2,
                     "style": 1,
-                    "label": мяу!(lang, "apply"),
+                    "label": terminal_text(lang, "apply"),
                     "custom_id": "terminal_flag_apply",
                     "disabled": !ready
                 },
                 {
                     "type": 2,
                     "style": 2,
-                    "label": мяу!(lang, "close"),
+                    "label": terminal_text(lang, "close"),
                     "custom_id": "terminal_flag_close"
                 }
             ]
@@ -910,7 +1005,7 @@ fn мяяяяяу_25__(lang: &str, draft: &МяуЧерновикФлага, sta
     ])
 }
 
-async fn мяяяяяу_26__(
+async fn send_terminal_v2_message(
     ctx: &serenity::Context,
     channel_id: serenity::ChannelId,
     components: serde_json::Value,
@@ -928,57 +1023,54 @@ async fn мяяяяяу_26__(
         .await?)
 }
 
-async fn мяяяяяу_27__(
+async fn update_terminal_component_message(
     ctx: &serenity::Context,
     component: &serenity::ComponentInteraction,
     components: serde_json::Value,
 ) -> Result<(), Error> {
-    ctx.http.create_interaction_response(
-        component.id,
-        &component.token,
-        &json!({
-            "type": 7,
-            "data": {
-                "flags": 1 << 15,
-                "components": components
-            }
-        }),
-        vec![],
-    ).await?;
+    ctx.http
+        .create_interaction_response(
+            component.id,
+            &component.token,
+            &json!({
+                "type": 7,
+                "data": {
+                    "flags": 1 << 15,
+                    "components": components
+                }
+            }),
+            vec![],
+        )
+        .await?;
     Ok(())
 }
 
-async fn мяяяяяу_28__(ctx: &serenity::Context, data: &МяуДанные, message: &serenity::Message) -> bool {
+async fn is_authorized_message(data: &Data, message: &serenity::Message) -> bool {
     let uid = message.author.id.to_string();
-    if let Some(guild_id) = message.guild_id {
-        if let Some(guild) = ctx.cache.guild(guild_id) {
-            if guild.owner_id == message.author.id {
-                return true;
-            }
-        }
-        if let Ok(member) = guild_id.member(&ctx.http, message.author.id).await {
-            if let Ok(perms) = member.permissions(&ctx.cache) {
-                if perms.administrator() {
-                    return true;
-                }
-            }
-            if let Some(role_id) = data.мяу_роль_стаффа_39__(Some(guild_id)).await {
-                if member.roles.contains(&role_id) {
-                    return true;
-                }
-            }
-        }
+    if crate::bot::owner_user_id().as_deref() == Some(uid.as_str()) {
+        return true;
     }
     let wl = data.terminal_whitelist.read().await;
     if wl.contains(&uid) {
         return true;
     }
-    false
+
+    let Some(guild_id) = message.guild_id else {
+        return false;
+    };
+    let staff_role_id = crate::bot::guild_settings(data, guild_id)
+        .await
+        .staff_role_id;
+
+    match (message.member.as_ref(), staff_role_id) {
+        (Some(member), Some(role_id)) => member.roles.contains(&serenity::RoleId::new(role_id)),
+        _ => false,
+    }
 }
 
-pub async fn мяяяяяу_29__(
+pub async fn handle_terminal_component_interaction(
     ctx: &serenity::Context,
-    data: &МяуДанные,
+    data: &Data,
     component: &serenity::ComponentInteraction,
 ) -> Result<bool, Error> {
     let custom_id = component.data.custom_id.as_str();
@@ -987,13 +1079,20 @@ pub async fn мяяяяяу_29__(
     }
 
     let user_id = component.user.id.to_string();
-    let lang = мяяяяяу_19__(data, component.guild_id).await;
+    let lang = terminal_lang_message(data, component.guild_id).await;
 
     match custom_id {
         "terminal_docs_select" => {
-            if let serenity::ComponentInteractionDataKind::StringSelect { values } = &component.data.kind {
+            if let serenity::ComponentInteractionDataKind::StringSelect { values } =
+                &component.data.kind
+            {
                 let selected = values.first().map(|value| value.as_str()).unwrap_or("help");
-                мяяяяяу_27__(ctx, component, мяяяяяу_23__(&lang, selected)).await?;
+                update_terminal_component_message(
+                    ctx,
+                    component,
+                    terminal_docs_components(&lang, selected),
+                )
+                .await?;
             } else {
                 component.defer(ctx).await?;
             }
@@ -1003,12 +1102,15 @@ pub async fn мяяяяяу_29__(
             component.defer(ctx).await?;
             let _ = component.message.delete(ctx).await;
             if custom_id == "terminal_flag_close" {
-                data.terminal_flag_drafts.write().await.remove(&component.message.id.to_string());
+                data.terminal_flag_drafts
+                    .write()
+                    .await
+                    .remove(&component.message.id.to_string());
             }
             Ok(true)
         }
         "terminal_flag_open" => {
-            let draft = МяуЧерновикФлага {
+            let draft = TerminalFlagDraft {
                 owner_user_id: user_id,
                 ..Default::default()
             };
@@ -1016,53 +1118,86 @@ pub async fn мяяяяяу_29__(
                 .write()
                 .await
                 .insert(component.message.id.to_string(), draft.clone());
-            мяяяяяу_27__(ctx, component, мяяяяяу_25__(&lang, &draft, None)).await?;
+            update_terminal_component_message(
+                ctx,
+                component,
+                terminal_flag_components(&lang, &draft, None),
+            )
+            .await?;
             Ok(true)
         }
-        "terminal_flag_channel" | "terminal_flag_action" | "terminal_flag_name" | "terminal_flag_apply" => {
+        "terminal_flag_channel"
+        | "terminal_flag_action"
+        | "terminal_flag_name"
+        | "terminal_flag_apply" => {
             let message_key = component.message.id.to_string();
             let mut drafts = data.terminal_flag_drafts.write().await;
-            let draft = drafts.entry(message_key.clone()).or_insert_with(|| МяуЧерновикФлага {
-                owner_user_id: user_id.clone(),
-                ..Default::default()
-            });
+            let draft = drafts
+                .entry(message_key.clone())
+                .or_insert_with(|| TerminalFlagDraft {
+                    owner_user_id: user_id.clone(),
+                    ..Default::default()
+                });
 
             if draft.owner_user_id != user_id {
-                component.create_response(
-                    ctx,
+                component
+                    .create_response(
+                        ctx,
                         serenity::CreateInteractionResponse::Message(
                             serenity::CreateInteractionResponseMessage::new()
-                            .content(мяу!(&lang, "panel_other_operator"))
-                            .ephemeral(true),
-                    ),
-                ).await?;
+                                .content(terminal_text(&lang, "panel_other_operator"))
+                                .ephemeral(true),
+                        ),
+                    )
+                    .await?;
                 return Ok(true);
             }
 
             match custom_id {
                 "terminal_flag_channel" => {
-                    if let serenity::ComponentInteractionDataKind::ChannelSelect { values } = &component.data.kind {
+                    if let serenity::ComponentInteractionDataKind::ChannelSelect { values } =
+                        &component.data.kind
+                    {
                         draft.target_channel_id = values.first().map(|value| value.to_string());
                     }
                     let next = draft.clone();
                     drop(drafts);
-                    мяяяяяу_27__(ctx, component, мяяяяяу_25__(&lang, &next, None)).await?;
+                    update_terminal_component_message(
+                        ctx,
+                        component,
+                        terminal_flag_components(&lang, &next, None),
+                    )
+                    .await?;
                 }
                 "terminal_flag_action" => {
-                    if let serenity::ComponentInteractionDataKind::StringSelect { values } = &component.data.kind {
+                    if let serenity::ComponentInteractionDataKind::StringSelect { values } =
+                        &component.data.kind
+                    {
                         draft.action = values.first().cloned();
                     }
                     let next = draft.clone();
                     drop(drafts);
-                    мяяяяяу_27__(ctx, component, мяяяяяу_25__(&lang, &next, None)).await?;
+                    update_terminal_component_message(
+                        ctx,
+                        component,
+                        terminal_flag_components(&lang, &next, None),
+                    )
+                    .await?;
                 }
                 "terminal_flag_name" => {
-                    if let serenity::ComponentInteractionDataKind::StringSelect { values } = &component.data.kind {
+                    if let serenity::ComponentInteractionDataKind::StringSelect { values } =
+                        &component.data.kind
+                    {
                         draft.flag = values.first().cloned();
                     }
                     let next = draft.clone();
                     drop(drafts);
-                    мяяяяяу_27__(ctx, component, мяяяяяу_25__(&lang, &next, None)).await?;
+                    update_terminal_component_message(
+                        ctx,
+                        component,
+                        terminal_flag_components(&lang, &next, None),
+                    )
+                    .await?;
                 }
                 "terminal_flag_apply" => {
                     let target_channel_id = draft.target_channel_id.clone();
@@ -1071,31 +1206,46 @@ pub async fn мяяяяяу_29__(
                     drop(drafts);
 
                     let Some(target_channel_id) = target_channel_id else {
-                        мяяяяяу_27__(
+                        update_terminal_component_message(
                             ctx,
                             component,
-                            мяяяяяу_25__(&lang, &МяуЧерновикФлага::default(), Some(мяу!(&lang, "select_channel_first"))),
-                        ).await?;
+                            terminal_flag_components(
+                                &lang,
+                                &TerminalFlagDraft::default(),
+                                Some(terminal_text(&lang, "select_channel_first")),
+                            ),
+                        )
+                        .await?;
                         return Ok(true);
                     };
                     let Some(action) = action else {
-                        мяяяяяу_27__(
+                        update_terminal_component_message(
                             ctx,
                             component,
-                            мяяяяяу_25__(&lang, &МяуЧерновикФлага::default(), Some(мяу!(&lang, "select_action_first"))),
-                        ).await?;
+                            terminal_flag_components(
+                                &lang,
+                                &TerminalFlagDraft::default(),
+                                Some(terminal_text(&lang, "select_action_first")),
+                            ),
+                        )
+                        .await?;
                         return Ok(true);
                     };
                     let Some(flag) = flag else {
-                        мяяяяяу_27__(
+                        update_terminal_component_message(
                             ctx,
                             component,
-                            мяяяяяу_25__(&lang, &МяуЧерновикФлага::default(), Some(мяу!(&lang, "select_flag_first"))),
-                        ).await?;
+                            terminal_flag_components(
+                                &lang,
+                                &TerminalFlagDraft::default(),
+                                Some(terminal_text(&lang, "select_flag_first")),
+                            ),
+                        )
+                        .await?;
                         return Ok(true);
                     };
 
-                    let current_draft = МяуЧерновикФлага {
+                    let current_draft = TerminalFlagDraft {
                         owner_user_id: user_id,
                         target_channel_id: Some(target_channel_id.clone()),
                         action: Some(action.clone()),
@@ -1113,21 +1263,26 @@ pub async fn мяяяяяу_29__(
                             list.retain(|entry| entry != &flag);
                         }
                     }
-                    data.мяу_сохрани_flags_29__().await;
+                    data.save_flags().await;
                     data.terminal_flag_drafts
                         .write()
                         .await
                         .insert(component.message.id.to_string(), current_draft.clone());
                     let status = if action == "add" {
-                        мяу!(&lang, "flag_apply_added")
+                        terminal_text(&lang, "flag_apply_added")
                             .replace("{flag}", &flag)
                             .replace("{channel}", &target_channel_id)
                     } else {
-                        мяу!(&lang, "flag_apply_removed")
+                        terminal_text(&lang, "flag_apply_removed")
                             .replace("{flag}", &flag)
                             .replace("{channel}", &target_channel_id)
                     };
-                    мяяяяяу_27__(ctx, component, мяяяяяу_25__(&lang, &current_draft, Some(&status))).await?;
+                    update_terminal_component_message(
+                        ctx,
+                        component,
+                        terminal_flag_components(&lang, &current_draft, Some(&status)),
+                    )
+                    .await?;
                 }
                 _ => {}
             }
@@ -1138,28 +1293,28 @@ pub async fn мяяяяяу_29__(
     }
 }
 
-pub async fn мяяяяяу_30__(
+pub async fn handle_terminal_channel_message(
     ctx: &serenity::Context,
-    data: &МяуДанные,
+    data: &Data,
     message: &serenity::Message,
 ) -> Result<bool, Error> {
-    let terminal_channel_id = data
-        .мяу_конфиг_сервера_38__(message.guild_id)
-        .await
-        .terminal_channel_id
-        .and_then(|id| id.parse::<u64>().ok());
-    if terminal_channel_id.map(serenity::ChannelId::new) != Some(message.channel_id) {
+    let Some(terminal_channel_id) = crate::bot::terminal_channel_id(data, message.guild_id).await
+    else {
+        return Ok(false);
+    };
+
+    if message.channel_id != serenity::ChannelId::new(terminal_channel_id) {
         return Ok(false);
     }
     let parts: Vec<&str> = message.content.split_whitespace().collect();
     if parts.is_empty() {
         return Ok(true);
     }
-    let lang = мяяяяяу_19__(data, message.guild_id).await;
-    if !мяяяяяу_28__(ctx, data, message).await {
+    let lang = terminal_lang_message(data, message.guild_id).await;
+    if !is_authorized_message(data, message).await {
         message
             .channel_id
-            .say(ctx, мяу!(&lang, "unauthorized"))
+            .say(ctx, terminal_text(&lang, "unauthorized"))
             .await?;
         return Ok(true);
     }
@@ -1177,16 +1332,19 @@ pub async fn мяяяяяу_30__(
                 "list" => {
                     let wl = data.terminal_whitelist.read().await;
                     let text = if wl.is_empty() {
-                        мяу!(&lang, "empty").to_string()
+                        terminal_text(&lang, "empty").to_string()
                     } else {
-                        wl.iter().map(|id| format!("<@{}>", id)).collect::<Vec<_>>().join(", ")
+                        wl.iter()
+                            .map(|id| format!("<@{}>", id))
+                            .collect::<Vec<_>>()
+                            .join(", ")
                     };
-                    ctx.http.send_message(message.channel_id, vec![], &serde_json::json!({ "flags": 1<<15, "components": [{ "type": 17, "components": [{ "type": 10, "content": мяу!(&lang, "wl_list").replace("{list}", &text) }] }] })).await.ok();
+                    ctx.http.send_message(message.channel_id, vec![], &serde_json::json!({ "flags": 1<<15, "components": [{ "type": 17, "components": [{ "type": 10, "content": terminal_text(&lang, "wl_list").replace("{list}", &text) }] }] })).await.ok();
                 }
                 "add" => {
-                    let target = parts.get(2).map(|s| мяяяяяу_17__(s)).unwrap_or_default();
+                    let target = parts.get(2).map(|s| clean_id(s)).unwrap_or_default();
                     if target.is_empty() {
-                        ctx.http.send_message(message.channel_id, vec![], &serde_json::json!({ "flags": 1<<15, "components": [{ "type": 17, "components": [{ "type": 10, "content": мяу!(&lang, "usage_wl_add_msg") }] }] })).await.ok();
+                        ctx.http.send_message(message.channel_id, vec![], &serde_json::json!({ "flags": 1<<15, "components": [{ "type": 17, "components": [{ "type": 10, "content": terminal_text(&lang, "usage_wl_add_msg") }] }] })).await.ok();
                     } else {
                         let added = {
                             let mut wl = data.terminal_whitelist.write().await;
@@ -1198,17 +1356,19 @@ pub async fn мяяяяяу_30__(
                             }
                         };
                         if !added {
-                            ctx.http.send_message(message.channel_id, vec![], &serde_json::json!({ "flags": 1<<15, "components": [{ "type": 17, "components": [{ "type": 10, "content": мяу!(&lang, "wl_exists") }] }] })).await.ok();
+                            ctx.http.send_message(message.channel_id, vec![], &serde_json::json!({ "flags": 1<<15, "components": [{ "type": 17, "components": [{ "type": 10, "content": terminal_text(&lang, "wl_exists") }] }] })).await.ok();
                         } else {
-                            data.мяу_сохрани_whitelist_27__().await;
-                            let _ = message.react(ctx, serenity::ReactionType::Unicode("".into())).await;
+                            data.save_whitelist().await;
+                            let _ = message
+                                .react(ctx, serenity::ReactionType::Unicode("".into()))
+                                .await;
                         }
                     }
                 }
                 "rm" => {
-                    let target = parts.get(2).map(|s| мяяяяяу_17__(s)).unwrap_or_default();
+                    let target = parts.get(2).map(|s| clean_id(s)).unwrap_or_default();
                     if target.is_empty() {
-                        ctx.http.send_message(message.channel_id, vec![], &serde_json::json!({ "flags": 1<<15, "components": [{ "type": 17, "components": [{ "type": 10, "content": мяу!(&lang, "usage_wl_rm_msg") }] }] })).await.ok();
+                        ctx.http.send_message(message.channel_id, vec![], &serde_json::json!({ "flags": 1<<15, "components": [{ "type": 17, "components": [{ "type": 10, "content": terminal_text(&lang, "usage_wl_rm_msg") }] }] })).await.ok();
                     } else {
                         let removed = {
                             let mut wl = data.terminal_whitelist.write().await;
@@ -1220,36 +1380,46 @@ pub async fn мяяяяяу_30__(
                             }
                         };
                         if !removed {
-                            ctx.http.send_message(message.channel_id, vec![], &serde_json::json!({ "flags": 1<<15, "components": [{ "type": 17, "components": [{ "type": 10, "content": мяу!(&lang, "wl_missing") }] }] })).await.ok();
+                            ctx.http.send_message(message.channel_id, vec![], &serde_json::json!({ "flags": 1<<15, "components": [{ "type": 17, "components": [{ "type": 10, "content": terminal_text(&lang, "wl_missing") }] }] })).await.ok();
                         } else {
-                            data.мяу_сохрани_whitelist_27__().await;
-                            let _ = message.react(ctx, serenity::ReactionType::Unicode("".into())).await;
+                            data.save_whitelist().await;
+                            let _ = message
+                                .react(ctx, serenity::ReactionType::Unicode("".into()))
+                                .await;
                         }
                     }
                 }
                 _ => {
-                    ctx.http.send_message(message.channel_id, vec![], &serde_json::json!({ "flags": 1<<15, "components": [{ "type": 17, "components": [{ "type": 10, "content": мяу!(&lang, "usage_wl_msg") }] }] })).await.ok();
+                    ctx.http.send_message(message.channel_id, vec![], &serde_json::json!({ "flags": 1<<15, "components": [{ "type": 17, "components": [{ "type": 10, "content": terminal_text(&lang, "usage_wl_msg") }] }] })).await.ok();
                 }
             }
             return Ok(true);
         }
         "ap" => {
             if parts.len() < 3 {
-                мяяяяяу_26__(ctx, message.channel_id, мяяяяяу_23__(&lang, "ap")).await.ok();
+                send_terminal_v2_message(
+                    ctx,
+                    message.channel_id,
+                    terminal_docs_components(&lang, "ap"),
+                )
+                .await
+                .ok();
                 return Ok(true);
             }
-            let req = мяяяяяу_17__(parts[1]);
-            let app = мяяяяяу_17__(parts[2]);
+            let req = clean_id(parts[1]);
+            let app = clean_id(parts[2]);
             if req.is_empty() || app.is_empty() {
-                ctx.http.send_message(message.channel_id, vec![], &serde_json::json!({ "flags": 1<<15, "components": [{ "type": 17, "components": [{ "type": 10, "content": мяу!(&lang, "invalid_channel_ids") }] }] })).await.ok();
+                ctx.http.send_message(message.channel_id, vec![], &serde_json::json!({ "flags": 1<<15, "components": [{ "type": 17, "components": [{ "type": 10, "content": terminal_text(&lang, "invalid_channel_ids") }] }] })).await.ok();
                 return Ok(true);
             }
             {
                 let mut channels = data.approval_channels.write().await;
                 channels.insert(req, app);
             }
-            data.мяу_сохрани_approval_28__().await;
-            let _ = message.react(ctx, serenity::ReactionType::Unicode("".into())).await;
+            data.save_approval_channels().await;
+            let _ = message
+                .react(ctx, serenity::ReactionType::Unicode("".into()))
+                .await;
             return Ok(true);
         }
         "fetch" => {
@@ -1257,25 +1427,25 @@ pub async fn мяяяяяу_30__(
             if let Ok(text) = std::fs::read_to_string(path) {
                 ctx.http.send_message(message.channel_id, vec![], &serde_json::json!({ "flags": 1<<15, "components": [{ "type": 17, "components": [{ "type": 10, "content": format!("```\n{}\n```", text) }] }] })).await.ok();
             } else {
-                ctx.http.send_message(message.channel_id, vec![], &serde_json::json!({ "flags": 1<<15, "components": [{ "type": 17, "components": [{ "type": 10, "content": мяу!(&lang, "fetch_missing") }] }] })).await.ok();
+                ctx.http.send_message(message.channel_id, vec![], &serde_json::json!({ "flags": 1<<15, "components": [{ "type": 17, "components": [{ "type": 10, "content": terminal_text(&lang, "fetch_missing") }] }] })).await.ok();
             }
             return Ok(true);
         }
         "echo" => {
             if parts.len() < 3 {
-                ctx.http.send_message(message.channel_id, vec![], &serde_json::json!({ "flags": 1<<15, "components": [{ "type": 17, "components": [{ "type": 10, "content": мяу!(&lang, "usage_echo_msg") }] }] })).await.ok();
+                ctx.http.send_message(message.channel_id, vec![], &serde_json::json!({ "flags": 1<<15, "components": [{ "type": 17, "components": [{ "type": 10, "content": terminal_text(&lang, "usage_echo_msg") }] }] })).await.ok();
                 return Ok(true);
             }
-            let channel_id = мяяяяяу_17__(parts[1]).parse::<u64>().unwrap_or(0);
+            let channel_id = clean_id(parts[1]).parse::<u64>().unwrap_or(0);
             if channel_id == 0 {
-                ctx.http.send_message(message.channel_id, vec![], &serde_json::json!({ "flags": 1<<15, "components": [{ "type": 17, "components": [{ "type": 10, "content": мяу!(&lang, "channel_not_found") }] }] })).await.ok();
+                ctx.http.send_message(message.channel_id, vec![], &serde_json::json!({ "flags": 1<<15, "components": [{ "type": 17, "components": [{ "type": 10, "content": terminal_text(&lang, "channel_not_found") }] }] })).await.ok();
                 return Ok(true);
             }
             let description = parts[2..].join(" ");
             let mut channel = match serenity::ChannelId::new(channel_id).to_channel(ctx).await {
                 Ok(serenity::Channel::Guild(ch)) => ch,
                 _ => {
-                    ctx.http.send_message(message.channel_id, vec![], &serde_json::json!({ "flags": 1<<15, "components": [{ "type": 17, "components": [{ "type": 10, "content": мяу!(&lang, "channel_not_found") }] }] })).await.ok();
+                    ctx.http.send_message(message.channel_id, vec![], &serde_json::json!({ "flags": 1<<15, "components": [{ "type": 17, "components": [{ "type": 10, "content": terminal_text(&lang, "channel_not_found") }] }] })).await.ok();
                     return Ok(true);
                 }
             };
@@ -1284,9 +1454,11 @@ pub async fn мяяяяяу_30__(
                 .await
                 .is_ok()
             {
-                let _ = message.react(ctx, serenity::ReactionType::Unicode("".into())).await;
+                let _ = message
+                    .react(ctx, serenity::ReactionType::Unicode("".into()))
+                    .await;
             } else {
-                ctx.http.send_message(message.channel_id, vec![], &serde_json::json!({ "flags": 1<<15, "components": [{ "type": 17, "components": [{ "type": 10, "content": мяу!(&lang, "echo_error").replace("{err}", "") }] }] })).await.ok();
+                ctx.http.send_message(message.channel_id, vec![], &serde_json::json!({ "flags": 1<<15, "components": [{ "type": 17, "components": [{ "type": 10, "content": terminal_text(&lang, "echo_error").replace("{err}", "") }] }] })).await.ok();
             }
             return Ok(true);
         }
@@ -1295,15 +1467,18 @@ pub async fn мяяяяяу_30__(
                 ctx.http.send_message(message.channel_id, vec![], &serde_json::json!({ "flags": 1<<15, "components": [{ "type": 17, "components": [{ "type": 10, "content": "`[Terminal] Usage: touch <channel_name> [category_id]`" }] }] })).await.ok();
                 return Ok(true);
             }
-            let mut builder = serenity::CreateChannel::new(parts[1].to_string()).kind(serenity::ChannelType::Text);
+            let mut builder = serenity::CreateChannel::new(parts[1].to_string())
+                .kind(serenity::ChannelType::Text);
             if let Some(cat_raw) = parts.get(2) {
-                let cat = мяяяяяу_17__(cat_raw).parse::<u64>().unwrap_or(0);
+                let cat = clean_id(cat_raw).parse::<u64>().unwrap_or(0);
                 if cat != 0 {
                     builder = builder.category(serenity::ChannelId::new(cat));
                 }
             }
             if guild_id.create_channel(ctx, builder).await.is_ok() {
-                let _ = message.react(ctx, serenity::ReactionType::Unicode("".into())).await;
+                let _ = message
+                    .react(ctx, serenity::ReactionType::Unicode("".into()))
+                    .await;
             }
             return Ok(true);
         }
@@ -1312,9 +1487,12 @@ pub async fn мяяяяяу_30__(
                 ctx.http.send_message(message.channel_id, vec![], &serde_json::json!({ "flags": 1<<15, "components": [{ "type": 17, "components": [{ "type": 10, "content": "`[Terminal] Usage: mkdir <category_name>`" }] }] })).await.ok();
                 return Ok(true);
             }
-            let builder = serenity::CreateChannel::new(parts[1].to_string()).kind(serenity::ChannelType::Category);
+            let builder = serenity::CreateChannel::new(parts[1].to_string())
+                .kind(serenity::ChannelType::Category);
             if guild_id.create_channel(ctx, builder).await.is_ok() {
-                let _ = message.react(ctx, serenity::ReactionType::Unicode("".into())).await;
+                let _ = message
+                    .react(ctx, serenity::ReactionType::Unicode("".into()))
+                    .await;
             }
             return Ok(true);
         }
@@ -1324,7 +1502,7 @@ pub async fn мяяяяяу_30__(
                 return Ok(true);
             }
             let flag = parts[1];
-            let id = мяяяяяу_17__(parts[2]).parse::<u64>().unwrap_or(0);
+            let id = clean_id(parts[2]).parse::<u64>().unwrap_or(0);
             if id == 0 {
                 ctx.http.send_message(message.channel_id, vec![], &serde_json::json!({ "flags": 1<<15, "components": [{ "type": 17, "components": [{ "type": 10, "content": "`[Terminal] Invalid ID`" }] }] })).await.ok();
                 return Ok(true);
@@ -1340,7 +1518,9 @@ pub async fn мяяяяяу_30__(
                 ctx.http.send_message(message.channel_id, vec![], &serde_json::json!({ "flags": 1<<15, "components": [{ "type": 17, "components": [{ "type": 10, "content": "`[Terminal] Usage: rm -c|-ch|-m <id>`" }] }] })).await.ok();
                 return Ok(true);
             }
-            let _ = message.react(ctx, serenity::ReactionType::Unicode("".into())).await;
+            let _ = message
+                .react(ctx, serenity::ReactionType::Unicode("".into()))
+                .await;
             return Ok(true);
         }
         "mv" => {
@@ -1348,17 +1528,24 @@ pub async fn мяяяяяу_30__(
                 ctx.http.send_message(message.channel_id, vec![], &serde_json::json!({ "flags": 1<<15, "components": [{ "type": 17, "components": [{ "type": 10, "content": "`[Terminal] Usage: mv <channel> <category>`" }] }] })).await.ok();
                 return Ok(true);
             }
-            let ch_id = мяяяяяу_17__(parts[1]).parse::<u64>().unwrap_or(0);
-            let cat_id = мяяяяяу_17__(parts[2]).parse::<u64>().unwrap_or(0);
+            let ch_id = clean_id(parts[1]).parse::<u64>().unwrap_or(0);
+            let cat_id = clean_id(parts[2]).parse::<u64>().unwrap_or(0);
             if ch_id == 0 || cat_id == 0 {
                 ctx.http.send_message(message.channel_id, vec![], &serde_json::json!({ "flags": 1<<15, "components": [{ "type": 17, "components": [{ "type": 10, "content": "`[Terminal] Error: Invalid IDs`" }] }] })).await.ok();
                 return Ok(true);
             }
-            if let Ok(serenity::Channel::Guild(mut ch)) = serenity::ChannelId::new(ch_id).to_channel(ctx).await {
+            if let Ok(serenity::Channel::Guild(mut ch)) =
+                serenity::ChannelId::new(ch_id).to_channel(ctx).await
+            {
                 let _ = ch
-                    .edit(ctx, serenity::EditChannel::new().category(serenity::ChannelId::new(cat_id)))
+                    .edit(
+                        ctx,
+                        serenity::EditChannel::new().category(serenity::ChannelId::new(cat_id)),
+                    )
                     .await;
-                let _ = message.react(ctx, serenity::ReactionType::Unicode("".into())).await;
+                let _ = message
+                    .react(ctx, serenity::ReactionType::Unicode("".into()))
+                    .await;
             }
             return Ok(true);
         }
@@ -1367,15 +1554,17 @@ pub async fn мяяяяяу_30__(
                 ctx.http.send_message(message.channel_id, vec![], &serde_json::json!({ "flags": 1<<15, "components": [{ "type": 17, "components": [{ "type": 10, "content": "`[Terminal] Usage: role <role_id_or_mention> <user_id_or_mention>`" }] }] })).await.ok();
                 return Ok(true);
             }
-            let role_id = мяяяяяу_17__(parts[1]).parse::<u64>().unwrap_or(0);
-            let user_id = мяяяяяу_17__(parts[2]).parse::<u64>().unwrap_or(0);
+            let role_id = clean_id(parts[1]).parse::<u64>().unwrap_or(0);
+            let user_id = clean_id(parts[2]).parse::<u64>().unwrap_or(0);
             if role_id == 0 || user_id == 0 {
                 ctx.http.send_message(message.channel_id, vec![], &serde_json::json!({ "flags": 1<<15, "components": [{ "type": 17, "components": [{ "type": 10, "content": "`[Terminal] Error: Invalid IDs`" }] }] })).await.ok();
                 return Ok(true);
             }
             if let Ok(member) = guild_id.member(ctx, serenity::UserId::new(user_id)).await {
                 let _ = member.add_role(ctx, serenity::RoleId::new(role_id)).await;
-                let _ = message.react(ctx, serenity::ReactionType::Unicode("".into())).await;
+                let _ = message
+                    .react(ctx, serenity::ReactionType::Unicode("".into()))
+                    .await;
             }
             return Ok(true);
         }
@@ -1384,35 +1573,43 @@ pub async fn мяяяяяу_30__(
                 ctx.http.send_message(message.channel_id, vec![], &serde_json::json!({ "flags": 1<<15, "components": [{ "type": 17, "components": [{ "type": 10, "content": "`[Terminal] Usage: vm <user_id> <voice_channel_id>`" }] }] })).await.ok();
                 return Ok(true);
             }
-            let user_id = мяяяяяу_17__(parts[1]).parse::<u64>().unwrap_or(0);
-            let voice_id = мяяяяяу_17__(parts[2]).parse::<u64>().unwrap_or(0);
+            let user_id = clean_id(parts[1]).parse::<u64>().unwrap_or(0);
+            let voice_id = clean_id(parts[2]).parse::<u64>().unwrap_or(0);
             if user_id == 0 || voice_id == 0 {
                 ctx.http.send_message(message.channel_id, vec![], &serde_json::json!({ "flags": 1<<15, "components": [{ "type": 17, "components": [{ "type": 10, "content": "`[Terminal] Error: Invalid IDs`" }] }] })).await.ok();
                 return Ok(true);
             }
             let _ = guild_id
-                .move_member(ctx, serenity::UserId::new(user_id), serenity::ChannelId::new(voice_id))
+                .move_member(
+                    ctx,
+                    serenity::UserId::new(user_id),
+                    serenity::ChannelId::new(voice_id),
+                )
                 .await;
-            let _ = message.react(ctx, serenity::ReactionType::Unicode("".into())).await;
+            let _ = message
+                .react(ctx, serenity::ReactionType::Unicode("".into()))
+                .await;
             return Ok(true);
         }
         "flag" => {
             if parts.len() < 4 {
-                if let Ok(panel_message) = мяяяяяу_26__(
+                if let Ok(panel_message) = send_terminal_v2_message(
                     ctx,
                     message.channel_id,
-                    мяяяяяу_25__(
+                    terminal_flag_components(
                         &lang,
-                        &МяуЧерновикФлага {
+                        &TerminalFlagDraft {
                             owner_user_id: message.author.id.to_string(),
                             ..Default::default()
                         },
                         None,
                     ),
-                ).await {
+                )
+                .await
+                {
                     data.terminal_flag_drafts.write().await.insert(
                         panel_message.id.to_string(),
-                        МяуЧерновикФлага {
+                        TerminalFlagDraft {
                             owner_user_id: message.author.id.to_string(),
                             ..Default::default()
                         },
@@ -1421,7 +1618,7 @@ pub async fn мяяяяяу_30__(
                 return Ok(true);
             }
             let action = parts[1];
-            let channel_id = мяяяяяу_17__(parts[2]);
+            let channel_id = clean_id(parts[2]);
             let flag = parts[3].to_lowercase();
             if action == "add" {
                 {
@@ -1431,7 +1628,7 @@ pub async fn мяяяяяу_30__(
                         list.push(flag.clone());
                     }
                 }
-                data.мяу_сохрани_flags_29__().await;
+                data.save_flags().await;
                 ctx.http.send_message(message.channel_id, vec![], &serde_json::json!({ "flags": 1<<15, "components": [{ "type": 17, "components": [{ "type": 10, "content": format!("`[Terminal]  Added flag '{}' to channel <#{}>`", flag, channel_id) }] }] })).await.ok();
             } else if action == "rm" {
                 {
@@ -1439,7 +1636,7 @@ pub async fn мяяяяяу_30__(
                     let list = flags.entry(channel_id.clone()).or_default();
                     list.retain(|f| f != &flag);
                 }
-                data.мяу_сохрани_flags_29__().await;
+                data.save_flags().await;
                 ctx.http.send_message(message.channel_id, vec![], &serde_json::json!({ "flags": 1<<15, "components": [{ "type": 17, "components": [{ "type": 10, "content": format!("`[Terminal]  Removed flag '{}' from channel <#{}>`", flag, channel_id) }] }] })).await.ok();
             } else {
                 ctx.http.send_message(message.channel_id, vec![], &serde_json::json!({ "flags": 1<<15, "components": [{ "type": 17, "components": [{ "type": 10, "content": "`[Terminal] Invalid action.`" }] }] })).await.ok();
@@ -1451,7 +1648,7 @@ pub async fn мяяяяяу_30__(
                 ctx.http.send_message(message.channel_id, vec![], &serde_json::json!({ "flags": 1<<15, "components": [{ "type": 17, "components": [{ "type": 10, "content": "`[Terminal] Usage: massrole <role_id_or_mention>`" }] }] })).await.ok();
                 return Ok(true);
             }
-            let role_id = мяяяяяу_17__(parts[1]).parse::<u64>().unwrap_or(0);
+            let role_id = clean_id(parts[1]).parse::<u64>().unwrap_or(0);
             if role_id == 0 {
                 ctx.http.send_message(message.channel_id, vec![], &serde_json::json!({ "flags": 1<<15, "components": [{ "type": 17, "components": [{ "type": 10, "content": "`[Terminal] Error: Invalid role`" }] }] })).await.ok();
                 return Ok(true);
@@ -1464,7 +1661,11 @@ pub async fn мяяяяяу_30__(
             while let Some(next) = members.next().await {
                 if let Ok(member) = next {
                     if !member.user.bot && !member.roles.contains(&serenity::RoleId::new(role_id)) {
-                        if member.add_role(ctx, serenity::RoleId::new(role_id)).await.is_ok() {
+                        if member
+                            .add_role(ctx, serenity::RoleId::new(role_id))
+                            .await
+                            .is_ok()
+                        {
                             ok += 1;
                         } else {
                             fail += 1;
@@ -1480,9 +1681,9 @@ pub async fn мяяяяяу_30__(
                 ctx.http.send_message(message.channel_id, vec![], &serde_json::json!({ "flags": 1<<15, "components": [{ "type": 17, "components": [{ "type": 10, "content": "`[Terminal] Usage: rrole @role <emoji> #channel [message]`" }] }] })).await.ok();
                 return Ok(true);
             }
-            let role_id = мяяяяяу_17__(parts[1]).parse::<u64>().unwrap_or(0);
+            let role_id = clean_id(parts[1]).parse::<u64>().unwrap_or(0);
             let emoji = parts[2].to_string();
-            let channel_id = мяяяяяу_17__(parts[3]).parse::<u64>().unwrap_or(0);
+            let channel_id = clean_id(parts[3]).parse::<u64>().unwrap_or(0);
             if role_id == 0 || channel_id == 0 {
                 ctx.http.send_message(message.channel_id, vec![], &serde_json::json!({ "flags": 1<<15, "components": [{ "type": 17, "components": [{ "type": 10, "content": "`[Terminal] Error: Invalid arguments.`" }] }] })).await.ok();
                 return Ok(true);
@@ -1492,7 +1693,9 @@ pub async fn мяяяяяу_30__(
             } else {
                 format!("React with {} to get the role with ID {}!", emoji, role_id)
             };
-            let posted = serenity::ChannelId::new(channel_id).say(ctx, &content).await?;
+            let posted = serenity::ChannelId::new(channel_id)
+                .say(ctx, &content)
+                .await?;
             let reaction_type = serenity::ReactionType::Unicode(emoji.clone());
             if posted.react(ctx, reaction_type).await.is_ok() {
                 {
@@ -1502,8 +1705,10 @@ pub async fn мяяяяяу_30__(
                         serde_json::json!({ "roleId": role_id.to_string(), "emoji": emoji }),
                     );
                 }
-                data.мяу_сохрани_rroles_30__().await;
-                let _ = message.react(ctx, serenity::ReactionType::Unicode("".into())).await;
+                data.save_reaction_roles().await;
+                let _ = message
+                    .react(ctx, serenity::ReactionType::Unicode("".into()))
+                    .await;
             }
             return Ok(true);
         }
@@ -1512,8 +1717,8 @@ pub async fn мяяяяяу_30__(
                 ctx.http.send_message(message.channel_id, vec![], &serde_json::json!({ "flags": 1<<15, "components": [{ "type": 17, "components": [{ "type": 10, "content": "`[Terminal] Usage: rtr <@old_role> <@new_role>`" }] }] })).await.ok();
                 return Ok(true);
             }
-            let old_role = мяяяяяу_17__(parts[1]).parse::<u64>().unwrap_or(0);
-            let new_role = мяяяяяу_17__(parts[2]).parse::<u64>().unwrap_or(0);
+            let old_role = clean_id(parts[1]).parse::<u64>().unwrap_or(0);
+            let new_role = clean_id(parts[2]).parse::<u64>().unwrap_or(0);
             if old_role == 0 || new_role == 0 {
                 ctx.http.send_message(message.channel_id, vec![], &serde_json::json!({ "flags": 1<<15, "components": [{ "type": 17, "components": [{ "type": 10, "content": "`[Terminal] Error: Invalid role input.`" }] }] })).await.ok();
                 return Ok(true);
@@ -1525,8 +1730,14 @@ pub async fn мяяяяяу_30__(
             while let Some(next) = members.next().await {
                 if let Ok(member) = next {
                     if member.roles.contains(&serenity::RoleId::new(old_role)) {
-                        if member.remove_role(ctx, serenity::RoleId::new(old_role)).await.is_err()
-                            || member.add_role(ctx, serenity::RoleId::new(new_role)).await.is_err()
+                        if member
+                            .remove_role(ctx, serenity::RoleId::new(old_role))
+                            .await
+                            .is_err()
+                            || member
+                                .add_role(ctx, serenity::RoleId::new(new_role))
+                                .await
+                                .is_err()
                         {
                             fail += 1;
                         } else {
@@ -1539,13 +1750,21 @@ pub async fn мяяяяяу_30__(
             return Ok(true);
         }
         "help" => {
-            мяяяяяу_26__(ctx, message.channel_id, мяяяяяу_23__(&lang, "help")).await.ok();
+            send_terminal_v2_message(
+                ctx,
+                message.channel_id,
+                terminal_docs_components(&lang, "help"),
+            )
+            .await
+            .ok();
             return Ok(true);
         }
         _ => {
+            // Silent ignore in terminal channel for unknown commands would be confusing,
+            // so we show a small hint.
             message
                 .channel_id
-                .say(ctx, мяу!(&lang, "unknown_command"))
+                .say(ctx, terminal_text(&lang, "unknown_command"))
                 .await?;
             return Ok(true);
         }
